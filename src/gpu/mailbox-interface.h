@@ -4,6 +4,13 @@
 #include "mailbox.h"
 #include <stdbool.h>
 
+#define FB_MSG_NWORDS 22
+
+typedef struct { 
+    uint32_t val1;
+    uint32_t val2;
+} mbox_response_t;
+
 enum {
     MBOX_REQUEST = 0,
     MBOX_REQUEST_SUCCESS = 0x80000000,
@@ -136,6 +143,16 @@ typedef enum {
     /* VHCIQ */
 } MboxTags;
 
+typedef struct {
+    uint32_t base_addr; // bus address returned by GPU
+    uint32_t size;      // framebuffer size in bytes
+    uint32_t p_width;   // actual physical width in pixels
+    uint32_t p_height;  // actual physical height in pixels
+    uint32_t v_width;     // actual virtual width in pixels
+    uint32_t v_height;    // actual virtual height in pixels
+    uint32_t depth;     // actual bits per pixel
+} fb_info_t;
+
 bool mbox_get_property(uint32_t* msg);
 
 uint32_t RPI_get_serialnum(void);
@@ -143,5 +160,14 @@ uint32_t RPI_get_model(void);
 uint32_t RPI_get_memsize(void);
 uint32_t RPI_get_revision(void);
 uint32_t RPI_get_temp(void);
+mbox_response_t RPI_fb_allocate(uint32_t alignment);
+mbox_response_t RPI_fb_blank_screen(uint32_t state);
+mbox_response_t RPI_fb_get_physical_width_height(void);
+mbox_response_t RPI_fb_set_physical_width_height(uint32_t width, uint32_t height);
+mbox_response_t RPI_fb_get_virtual_width_height(void);
+mbox_response_t RPI_fb_set_virtual_width_height(uint32_t width, uint32_t height);
+mbox_response_t RPI_fb_get_depth(void);
+mbox_response_t RPI_fb_set_depth(uint32_t depth);
+fb_info_t RPI_fb_init(uint32_t p_width, uint32_t p_height, uint32_t v_width, uint32_t v_height, uint32_t depth);
 
 #endif

@@ -9,6 +9,8 @@
 #define MBOX_BASE_ADDR 0x2000B880
 #define MSG_SIZE 8 
 
+#define FB_MSG_NWORDS 22
+
 enum {
     MBOX_READ = MBOX_BASE_ADDR,
     MBOX_STATUS = MBOX_BASE_ADDR + 0x0018,
