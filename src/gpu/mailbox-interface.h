@@ -138,4 +138,10 @@ typedef enum {
 
 bool mbox_get_property(uint32_t* msg);
 
+uint32_t RPI_get_serialnum(void);
+uint32_t RPI_get_model(void);
+uint32_t RPI_get_memsize(void);
+uint32_t RPI_get_revision(void);
+uint32_t RPI_get_temp(void);
+
 #endif

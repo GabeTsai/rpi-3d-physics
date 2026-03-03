@@ -30,10 +30,5 @@ typedef enum {
 
 void mbox_write(MboxChannel channel, uint32_t data);
 uint32_t mbox_read(MboxChannel channel);
-uint32_t RPI_get_serialnum(void);
-uint32_t RPI_get_model(void);
-uint32_t RPI_get_memsize(void);
-uint32_t RPI_get_revision(void);    
-uint32_t RPI_get_temp(void);
 
 #endif
