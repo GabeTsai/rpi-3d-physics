@@ -14,8 +14,20 @@ STAFF_OBJS  +=  ./staff-objs/gpio.o
 # 3. comment out ours below:
 STAFF_OBJS  +=  ./staff-objs/gpio-pud.o
 
+STAFF_OBJS  +=  ./staff-objs/i2c.o
 STAFF_OBJS  +=  ./staff-objs/uart.o
 STAFF_OBJS  +=  ./staff-objs/gpio-int.o 
+
+STAFF_OBJS += ./staff-objs/kmalloc.o
+STAFF_OBJS += ./staff-objs/staff-single-step.o
+STAFF_OBJS += ./staff-objs/staff-full-except-asm.o
+STAFF_OBJS += ./staff-objs/staff-switchto-asm.o
+STAFF_OBJS += ./staff-objs/staff-full-except.o
+STAFF_OBJS += ./staff-objs/interrupts-asm.o
+STAFF_OBJS += ./staff-objs/interrupts-vec-asm.o
+STAFF_OBJS += ./staff-objs/staff-rpi-thread-asm.o
+STAFF_OBJS += ./staff-objs/staff-rpi-thread.o
+
 
 # these are all the locations that get made into
 # libpi.a

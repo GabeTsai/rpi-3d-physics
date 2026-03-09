@@ -68,7 +68,7 @@ VPATH := $(sort $(dir $(ALL_SRC)))
 
 .SUFFIXES: .run
 
-DEFS = $(CS140E_2026_PATH)/libpi/defs.mk
+DEFS = $(CS140E_2026_FINAL_PROJ_PATH)/libpi/defs.mk
 include $(DEFS)
 # CFLAGS += -Wno-unused-function -Wno-unused-variable  $(EXTRA_CFLAGS)
 CFLAGS += $(EXTRA_CFLAGS)
@@ -85,7 +85,7 @@ DEPS += $(MEMMAP) ./Makefile $(LPP)/mk/Makefile.lib.template $(DEFS)
 # if we are building libpi.a don't add it as a dependency!
 ifneq ($(LIB),libpi.a)
 ifneq ($(LIB),libpi-fp.a)
-DEPS += $(LPI)
+LINK_DEPS += $(LPI)
 # put lib first so we take symbols from there.
 # had a very weird error where a foo.o was appearing in libpi.  wth.
 LIBS += $(LIB) $(LPI) 

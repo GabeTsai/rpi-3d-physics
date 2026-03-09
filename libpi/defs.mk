@@ -1,8 +1,8 @@
 # setup useful variables that can be used by make.
 
 # this must be defined in your shell's startup file.
-ifndef CS140E_2026_PATH
-$(error CS140E_2026_PATH is not set: this should contain the absolute path to where this directory is.  Define it in your shell's initialiation.  For example, .tcshrc for tcsh or .bashrc for bash)
+ifndef CS140E_2026_FINAL_PROJ_PATH
+$(error CS140E_2026_FINAL_PROJ_PATH is not set: this should contain the absolute path to where this directory is.  Define it in your shell's initialiation.  For example, .tcshrc for tcsh or .bashrc for bash)
 endif
 
 # OPT_LEVEL = -O3
@@ -13,18 +13,23 @@ AS  = $(ARM)-as
 AR = $(ARM)-ar
 OD  = $(ARM)-objdump
 OCP = $(ARM)-objcopy
-CS140E_2026_LIBPI_PATH = $(CS140E_2026_PATH)/libpi
-LPP = $(CS140E_2026_LIBPI_PATH)
+CS240LX_2025_LIBPI_PATH = $(CS140E_2026_FINAL_PROJ_PATH)/libpi
+LPP = $(CS240LX_2025_LIBPI_PATH)
 LPI ?= $(LPP)/libpi.a
-LGCC ?= $(CS140E_2026_PATH)/lib/libgcc.a
+LGCC ?= $(CS140E_2026_FINAL_PROJ_PATH)/lib/libgcc.a
 
 # let the client override these.
 START ?= $(LPP)/staff-start.o
 DEFAULT_START := $(LPP)/staff-start.o
 MEMMAP ?= $(LPP)/memmap
 
+LIBM_DIR ?=  $(CS140E_2026_FINAL_PROJ_PATH)/lib/libm/
+LIBM ?=  $(LIBM_DIR)/libm-pi.a
+LIBM_INC ?=  -I$(LIBM_DIR) -I$(LIBM_DIR)/include/
+
+
 # include path: user can override
-INC += -I. -I$(LPP)/include -I$(LPP)/ -I$(LPP)/src  -I$(LPP)/libc -I$(LPP)/staff-private
+INC += -I. -I$(LPP)/include -I$(LPP)/ -I$(LPP)/src  -I$(LPP)/libc # -I$(LPP)/staff-private
 # optimization level: client can override
 OPT_LEVEL ?= -Og
 
@@ -56,3 +61,7 @@ CFLAGS += -mtp=soft
 
 # for .S compilation so we can use the preprocessor.
 CPP_ASFLAGS =  -nostdlib -nostartfiles -ffreestanding   -Wa,--warn -Wa,--fatal-warnings -Wa,-mcpu=arm1176jzf-s -Wa,-march=armv6zk   $(INC)
+
+
+CFLAGS += -DRPI_FP_ENABLED  -mhard-float -mfpu=vfp 
+CPP_ASFLAGS += -DRPI_FP_ENABLED  -mhard-float -mfpu=vfp

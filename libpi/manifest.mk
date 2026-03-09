@@ -23,7 +23,7 @@ RUN = 1
 # set if you want the code to automatically check after building.
 #CHECK = 0
 
-ifdef CS140E_STAFF
+ifdef CS240LX_STAFF
 ifndef CS140_ACT_AS_STUDENT
 #STAFF_OBJS += staff-objs/kmalloc.o
 #STAFF_OBJS += staff-objs/sw-uart.o
@@ -39,18 +39,25 @@ DEPS += ./src
 
 # we need these first so that the catchall .o rule in Makefile.robust
 # doesn't claim them.
-all:: ./staff-start.o
+all:: ./staff-start.o libm
 
 # copy staff-start.o to top level to make it easier to include.
 staff-start.o: $(BUILD_DIR)/staff-start.o
 	cp $(BUILD_DIR)/staff-start.o .
 
-include $(CS140E_2026_PATH)/libpi/mk/Makefile.template-fixed
+# XXX: some kind of bug where if you modify include/rpi.h it doesn't
+# remake?? how is that possible/
+include $(CS140E_2026_FINAL_PROJ_PATH)/libpi/mk/Makefile.template-fixed
+# include $(CS240LX_2025_PATH)/libpi/mk/Makefile.robust-v2
 
 clean::
 	rm -f staff-start.o
 	rm -f staff-start-fp.o
 	make -C  libc clean
 	make -C  staff-src clean
+	make -C  $(LIBM_DIR) clean
 
-.PHONY : libm test
+.PHONY : test libm
+
+libm:
+	make -C $(LIBM_DIR)

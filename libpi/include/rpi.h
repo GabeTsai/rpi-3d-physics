@@ -60,14 +60,8 @@ int vsnprintk(char *buf, unsigned buflen, const char *fmt, va_list ap);
  * uart routines: you will implement these.
  */
 
-// initialize to baud=115,200
+// initialize [XXX: we should take a baud rate?]
 void uart_init(void);
-
-// use the formula: 
-//   baud_reg = 250,000,000/(baud*8) - 1
-// feel free to wrap it up!
-void uart_div(uint32_t baud_reg);
-
 // disable
 void uart_disable(void);
 
@@ -91,6 +85,7 @@ int uart_can_putc(void);
 
 // flush out the tx fifo
 void uart_flush_tx(void);
+
 
 // forcibly disable the uart.
 void hw_uart_disable(void);
@@ -150,14 +145,10 @@ void *kmalloc_notzero(unsigned nbytes) ;
 void *kmalloc_aligned(unsigned nbytes, unsigned alignment);
 
 // initialize and set where the heap starts and give a maximum
-// size in bytes
+// size in mb
 void kmalloc_init_set_start(void *addr, unsigned max_nbytes);
-// UGH: fix this.  bad to not control the heap size.
-static inline void kmalloc_init(void) {
-    unsigned long MB = 1024*1024;
-    kmalloc_init_set_start((void*)MB, 64*MB);
-}
-static inline void kmalloc_init_mb(unsigned mb) {
+// use the default start: specify how many MB heap is.
+static inline void kmalloc_init(unsigned mb) {
     unsigned long MB = 1024*1024;
     kmalloc_init_set_start((void*)MB, mb*MB);
 }
@@ -248,6 +239,10 @@ void caches_enable(void);
 void caches_disable(void);
 int caches_is_enabled(void);
 
+// defined in <cstart.c> returns the true end of
+// the program bytes --- can be used as the 
+// start of the heap etc.
+void *program_end(void);
 
 int memiszero(const void *_p, unsigned n);
 
@@ -282,11 +277,19 @@ int memiszero(const void *_p, unsigned n);
 // bss.  
 void * custom_c_runtime_init(void);
 
+// set buf to the result of sprintk(fmt..).  returns buf.
+#define STR_MK(fmt...) \
+    ({ char buf[1024]; str_mk(buf, sizeof(buf), fmt); })
+
+char *str_mk(char *buf, unsigned n, const char *fmt, ...);
+
 // make a symbol weak.
 #define WEAK(fn) __attribute__((weak)) fn
 
-// where the final end of the [data+code+extra] is.
-void *program_end(void);
+// flush all caches.  [should be one name]
+void cache_flush_all(void);
+void flush_caches (void);
 
+#include "rpi-rand.h"
 
 #endif

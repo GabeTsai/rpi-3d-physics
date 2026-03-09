@@ -104,17 +104,12 @@ int gpio_event_detected(unsigned pin);
 // p96: have to write a 1 to the pin to clear the event.
 void gpio_event_clear(unsigned pin);
 
+void gpio_int_async_falling_edge(unsigned pin);
+void gpio_int_async_rising_edge(unsigned pin) ;
 
-// special panic for gpio.  Why: 
-//  - Our problem is if gpio is broken, output is pretty hard!  
-//  - Also, might be during boot.  
-//  - Also for next lab its useful to have a weird panic so we can test.
-// For today: we don't do anything besides inf loop (see panic:libpi.c).  
-// see: libpi.c
-void gpio_panic(const char *msg, ...);
-
-// macro hack
-#define gpio_assert(bool) do { if(!(bool)) gpio_panic(# bool); } while(0)
-
+void gpio_fiq_async_falling_edge(unsigned pin);
+void gpio_fiq_async_rising_edge(unsigned pin);
+void gpio_fiq_falling_edge(unsigned pin);
+void gpio_fiq_rising_edge(unsigned pin);
 
 #endif

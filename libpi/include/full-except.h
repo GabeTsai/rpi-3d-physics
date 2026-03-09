@@ -2,7 +2,7 @@
 #define __EXCEPTION_FULL_REGS_H__
 // exception handlers that load all registers [r0-r15 and spsr]
 // can resume back.
-#include "vector-base.h"
+// #include "vector-base.h"
 
 // for the register definition.
 #include "switchto.h"
@@ -29,6 +29,9 @@ static inline void * full_except_get_vec(void) {
 full_except_t full_except_set_prefetch(full_except_t h);
 // call to set data abort handler
 full_except_t full_except_set_data_abort(full_except_t h);
+
+// call to set undefined instruction handler.
+full_except_t full_except_set_undef(full_except_t h);
 
 // syscall: maybe give a nesting option for this one.
 full_excepti_t full_except_set_syscall(full_excepti_t h);
