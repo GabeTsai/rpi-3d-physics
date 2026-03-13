@@ -33,24 +33,9 @@ Tile Rendering CL:
 */
 # define NUM_TILES 1
 
-
-// uint32_t shaderCode[] __attribute__((aligned(32))) = {
-//     0x958e0dbf, 0xd1724823, /* mov r0, vary; mov r3.8d, 1.0 */
-//     0x818e7176, 0x40024821, /* fadd r0, r0, r5; mov r1, vary */
-//     0x818e7376, 0x10024862, /* fadd r1, r1, r5; mov r2, vary */
-//     0x819e7540, 0x114248a3, /* fadd r2, r2, r5; mov r3.8a, r0 */
-//     0x809e7009, 0x115049e3, /* nop; mov r3.8b, r1 */
-//     0x809e7012, 0x116049e3, /* nop; mov r3.8c, r2 */
-//     0x159e76c0, 0x30020ba7, /* mov tlbc, r3; nop; thrend */
-//     0x009e7000, 0x100009e7, /* nop; nop; nop */
-//     0x009e7000, 0x500009e7, /* nop; nop; sbdone */
-//   };
-
 void notmain(void) { 
     kmalloc_init(10);
     mbox_response_t response = RPI_qpu_enable(1);
-    PUT32(V3D_SQRSV0, 0);
-    PUT32(V3D_SQRSV1, ~0xffff);
     // clear counters 0..3
     PUT32(V3D_PCTRC, 0xF);
 
@@ -109,6 +94,7 @@ void notmain(void) {
     float viewport_hh = 64.0f / 2.0f;
     float viewport_hw_16th = viewport_hw * 16.0f;
     float viewport_hh_16th = viewport_hh * 16.0f;
+    // base, left, height, width
     cl_emit_clip_window(&binning_cl, 0, 0, 64, 64);
 
     configuration_bits_t cfg = { 
@@ -127,14 +113,9 @@ void notmain(void) {
         .early_z = false,
         .early_z_updates = false,
     };
-    // cl_emit_configuration_bits(&binning_cl, cfg);
-    cl_emit_uint8(&binning_cl, CONFIGURATION_BITS);  // 96
-    cl_emit_uint8(&binning_cl, 0x03);   // enable both forward and reverse facing primitives
-    cl_emit_uint8(&binning_cl, 0x00);   // depth testing disabled
-    cl_emit_uint8(&binning_cl, 0x02);   // early depth write
+    cl_emit_configuration_bits(&binning_cl, cfg);
     
     cl_emit_viewport_offset(&binning_cl, 0, 0); // center
-    // cl_emit_clipper_xy_scaling(&binning_cl, viewport_hw_16th, viewport_hh_16th);
 
     uint32_t* frag_shader_code_addr = (uint32_t*) simple_frag_shader;
     uint32_t frag_shader_code_addr_gpu = CPU_TO_BUS(frag_shader_code_addr);
@@ -274,13 +255,7 @@ void notmain(void) {
     PUT32(V3D_CT1EA, rendering_cl.gpu_addr + rendering_cl.bytes_written);
 
     int iter = 0;
-    while ((GET32(V3D_RFC) & 0xff) == 0) {
-        output("iteration %d\n", iter++);
-        output("perf counter 0 - FEP valid primitives for all rendered tiles: %x\n", GET32(V3D_PCTR0));
-        output("perf counter 1 - TLB Quads with any pixels passing the Z and stencil tests: %x\n", GET32(V3D_PCTR1));
-        output("perf counter 2 - TLB Quads with valid pixels written to color buffer: %x\n", GET32(V3D_PCTR2));
-        output("perf counter 3 - QPU Total clock cycles for all QPUs doing fragment shading: %x\n", GET32(V3D_PCTR3));
-    }
+    while ((GET32(V3D_RFC) & 0xff) == 0) {}
     assert(GET32(V3D_CT1CA) == GET32(V3D_CT1EA));
 
     output("frame count after: %x\n", bits_get(GET32(V3D_RFC), 0, 7));
@@ -290,10 +265,6 @@ void notmain(void) {
     output("ERRSTAT=%b\n", bits_get(GET32(V3D_ERRSTAT), 0, 15));
     output("DBGE=%b\n\n", bits_get(GET32(V3D_DBGE), 0, 20));
 
-    // performance counter debug
-   
-
-    output("framebuffer after: %x %x %x %x\n", fb_cpu[0], fb_cpu[1], fb_cpu[2], fb_cpu[3]);
     while(1);
 }
 

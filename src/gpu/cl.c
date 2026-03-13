@@ -165,10 +165,14 @@ void cl_emit_configuration_bits(cl_builder_t *cl, configuration_bits_t cfg) {
     flag2 |= cfg.covg_update_mode << 1;
     flag2 |= cfg.covg_read_mode << 3;
     flag2 |= cfg.depth_test_func << 4;
-    flag2 |= cfg.z_updates << 7;
-    flag2 |= cfg.early_z << 8;
-    flag2 |= cfg.early_z_updates << 9;
     cl_emit_uint8(cl, flag2);
+
+    uint8_t flag3 = 0;
+    flag3 |= cfg.z_updates;
+    flag3 |= cfg.early_z << 1;
+    flag3 |= cfg.early_z_updates << 2;
+
+    cl_emit_uint8(cl, flag3);
 }
 
 void cl_emit_branch_to_sublist(cl_builder_t *cl, uint32_t sublist_addr) {
