@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #define FB_MSG_NWORDS 22
+#define BYTES_PER_PIXEL 4
 
 typedef struct { 
     uint32_t val1;
@@ -160,6 +161,7 @@ uint32_t RPI_get_model(void);
 uint32_t RPI_get_memsize(void);
 uint32_t RPI_get_revision(void);
 uint32_t RPI_get_temp(void);
+
 mbox_response_t RPI_fb_allocate(uint32_t alignment);
 mbox_response_t RPI_fb_blank_screen(uint32_t state);
 mbox_response_t RPI_fb_get_physical_width_height(void);
@@ -168,6 +170,9 @@ mbox_response_t RPI_fb_get_virtual_width_height(void);
 mbox_response_t RPI_fb_set_virtual_width_height(uint32_t width, uint32_t height);
 mbox_response_t RPI_fb_get_depth(void);
 mbox_response_t RPI_fb_set_depth(uint32_t depth);
+mbox_response_t RPI_fb_get_pitch(void);
 fb_info_t RPI_fb_init(uint32_t p_width, uint32_t p_height, uint32_t v_width, uint32_t v_height, uint32_t depth);
+
+mbox_response_t RPI_qpu_enable(uint32_t enable);
 
 #endif

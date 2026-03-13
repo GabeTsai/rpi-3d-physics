@@ -6,6 +6,8 @@
 #define MBOX_FULL_BIT 0x80000000 // (1 << 31)
 #define MBOX_EMPTY_BIT 0x40000000 // (1 << 30)
 
+#define GPU_OFFSET 0x40000000
+
 #define MBOX_BASE_ADDR 0x2000B880
 #define MSG_SIZE 8 
 

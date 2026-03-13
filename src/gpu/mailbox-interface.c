@@ -259,6 +259,20 @@ mbox_response_t RPI_fb_set_depth(uint32_t depth) {
     return response;
 }
 
+mbox_response_t RPI_fb_get_pitch(void) {
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_GET_PITCH,
+        4, // 4-byte response
+        MBOX_REQUEST,
+        0, // pitch
+    };
+    check_response(msg);
+    mbox_response_t response = { msg[5] };
+    return response;
+}
+
 /*
  * from https://github.com/raspberrypi/firmware/wiki/Mailbox-property-interface: 
  * "If an allocate buffer tag is omitted when setting parameters, 
@@ -311,4 +325,18 @@ fb_info_t RPI_fb_init(uint32_t p_width, uint32_t p_height,
     };
 
     return fb;
+}
+
+mbox_response_t RPI_qpu_enable(uint32_t enable) { 
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_SET_ENABLE_QPU,
+        4, // 4-byte response
+        MBOX_REQUEST,
+        enable
+    };
+    check_response(msg);
+    mbox_response_t response = { msg[5] };
+    return response; 
 }

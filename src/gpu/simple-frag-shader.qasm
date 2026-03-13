@@ -5,7 +5,7 @@ nop     # of a fragment shader
 
 sbwait 
 
-ldi r0, 0xff0000ff # assuming rgba8888, this is red
+ldi r0, 0xffff0000 # assuming rgba8888, this is red
 
 mov tlbc, r0 # write color to tile buffer
 
