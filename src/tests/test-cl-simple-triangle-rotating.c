@@ -132,11 +132,11 @@ void notmain(void) {
     uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
     
     float xs_1_f = 32.0f;
-    float ys_1_f = 12.0f;
-    float xs_2_f = 12.0f;
-    float ys_2_f = 52.0f;
-    float xs_3_f = 52.0f;
-    float ys_3_f = 52.0f;
+    float ys_1_f = 0.0f;
+    float xs_2_f = 32.0f;
+    float ys_2_f = 64.0f;
+    float xs_3_f = 64.0f;
+    float ys_3_f = 32.0f;
     
     int16_t xs_1 = float_to_fixed12_4(xs_1_f);
     int16_t ys_1 = float_to_fixed12_4(ys_1_f);
@@ -247,12 +247,13 @@ void notmain(void) {
     cl_emit_single_control_id(&rendering_cl, STORE_MSAA_TLCB_END);
 
     float theta = 0.0f;
+    float zlevel = 0.5f;
     while (1) {
         // Update only the vertex buffer contents.
 
-        vec3 res = rotate_xyz_around_point((vec3){xs_1_f, ys_1_f, 0.5f},
+        vec3 res = rotate_xyz_around_point((vec3){xs_1_f, ys_1_f, zlevel},
                                         32.0f, 32.0f, 0.5f,
-                                        0.0f, 0.0f, theta);
+                                        0.0f, theta, 0.0f);
 
 
         int16_t xs_1 = float_to_fixed12_4(res.x);
@@ -264,9 +265,9 @@ void notmain(void) {
             .varyings = { 1.0f, 0.0f, 0.0f }   // red
         };
 
-        res = rotate_xyz_around_point((vec3){xs_2_f, ys_2_f, 0.5f},
+        res = rotate_xyz_around_point((vec3){xs_2_f, ys_2_f, zlevel},
                                 32.0f, 32.0f, 0.5f,
-                                0.0f, 0.0f, theta);
+                                0.0f, theta, 0.0f);
         
         int16_t xs_2 = float_to_fixed12_4(res.x);
         int16_t ys_2 = float_to_fixed12_4(res.y);
@@ -277,9 +278,9 @@ void notmain(void) {
             .varyings = { 0.0f, 1.0f, 0.0f }   // green
         };
 
-        res = rotate_xyz_around_point((vec3){xs_3_f, ys_3_f, 0.5f},
+        res = rotate_xyz_around_point((vec3){xs_3_f, ys_3_f, zlevel},
                         32.0f, 32.0f, 0.5f,
-                        0.0f, 0.0f, theta);
+                        0.0f, theta, 0.0f);
         
         int16_t xs_3 = float_to_fixed12_4(res.x);
         int16_t ys_3 = float_to_fixed12_4(res.y);
