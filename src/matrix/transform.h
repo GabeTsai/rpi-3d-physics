@@ -18,7 +18,7 @@ static inline vec3 rotate_xyz_around_point(vec3 p,
                                            float pitch, float roll, float yaw)
 {
     matrix T1 = matrix_homogeneous_init(-cx, -cy, -cz, 0.0f, 0.0f, 0.0f);
-    matrix R  = matrix_homogeneous_init(0.0f, 0.0f, 0.0f, pitch, roll, yaw);
+    matrix R  = matrix_homogeneous_init(0.0f, 0.0f, 0.0f, roll, pitch, yaw); //swapped because ??
     matrix T2 = matrix_homogeneous_init(cx, cy, cz, 0.0f, 0.0f, 0.0f);
 
     matrix TR = matrix_gemm(&R, &T1);
