@@ -8,7 +8,7 @@ LIB_SRC := $(wildcard ./*.c)
 LIBNAME = libunix.a
 
 # all the include locations.
-INC +=  -I$(CS140E_2026_PATH)/libunix
+INC +=  -I$(CS140E_2026_FINAL_PROJ_PATH)/libunix
 
 # define any flags you want to pass to CC
 CFLAGS = -g -Og -Wall -Wno-unused-function -Werror -Wno-unused-variable

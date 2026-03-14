@@ -9,10 +9,13 @@ __declspec(align(8))
 #elif defined(__GNUC__)
 __attribute__((aligned(8)))
 #endif
-uint32_t simple_frag_shader[18] = {
+uint32_t simple_frag_shader[24] = {
 0x009e7000, 0x100009e7,
 0x009e7000, 0x100009e7,
 0x009e7000, 0x400009e7,
+0x009e7000, 0x100009e7,
+0x009cf000, 0x100009e7,
+0x159cffc0, 0x10020b27,
 0xffff0000, 0xe0020827,
 0x159e7000, 0x10020ba7,
 0x009e7000, 0x500009e7,

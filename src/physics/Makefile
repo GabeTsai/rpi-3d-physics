@@ -7,7 +7,7 @@ RUN=1
 
 BOOTLOADER = my-install
 
-L = $(CS140E_2026_PATH)/libpi/staff-objs
+L = $(CS140E_2026_FINAL_PROJ_PATH)/libpi/staff-objs
 STAFF_OBJS += $(L)/staff-kmalloc.o
 
-include $(CS140E_2026_PATH)/libpi/mk/Makefile.robust-v2 
+include $(CS140E_2026_FINAL_PROJ_PATH)/libpi/mk/Makefile.robust-v2

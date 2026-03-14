@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-extern uint32_t simple_frag_shader[18];
+extern uint32_t simple_frag_shader[24];
 
 
 #ifdef __cplusplus

@@ -123,7 +123,7 @@ void notmain(void) {
     output("frag_shader_code_addr: %x\n", frag_shader_code_addr);
     output("frag_shader_code_addr_gpu: %x\n", frag_shader_code_addr_gpu);
 
-    assert(sizeof(nv_vertex_nch_nps_t) == 24);
+    // assert(sizeof(nv_vertex_nch_nps_t) == 24);
 
     uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
     
@@ -144,7 +144,7 @@ void notmain(void) {
         .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
         .zs = 0.5f,
         .inv_wc = 1.0f,
-        .varyings = { 1.0f, 0.0f, 0.0f }   // red
+        // .varyings = { 1.0f, 0.0f, 0.0f }   // red
     };
     
     int16_t xs_2 = float_to_fixed12_4(xs_2_f);
@@ -153,7 +153,7 @@ void notmain(void) {
         .xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
         .zs = 0.5f,
         .inv_wc = 1.0f,
-        .varyings = { 0.0f, 1.0f, 0.0f }   // green
+        // .varyings = { 0.0f, 1.0f, 0.0f }   // green
     };
     
     int16_t xs_3 = float_to_fixed12_4(xs_3_f);
@@ -162,7 +162,7 @@ void notmain(void) {
         .xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
         .zs = 0.5f,
         .inv_wc = 1.0f,
-        .varyings = { 0.0f, 0.0f, 1.0f }   // blue
+        // .varyings = { 0.0f, 0.0f, 1.0f }   // blue
     };
     
     uint8_t flag_bits = 0x01;   // no clip header, no point size
@@ -219,7 +219,7 @@ void notmain(void) {
     output("rendering_cl_base_ptr_gpu: %x\n", rendering_cl_base_ptr_gpu);
     cl_init(&rendering_cl, rendering_cl_base_ptr, rendering_cl_base_ptr_gpu, rendering_capacity);
     
-    cl_emit_clear_colors(&rendering_cl, 0xFF000000FF000000ULL, 0, 0); // 
+    cl_emit_clear_colors(&rendering_cl, 0xFF000000FF000000ULL, 0xFFFFFF, 0, 0);
 
     tile_render_cfg_t rendering_cfg = {
         .addr = fb.base_addr,

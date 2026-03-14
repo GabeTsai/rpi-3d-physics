@@ -108,7 +108,7 @@ typedef struct {
 } tile_render_cfg_t;
 
 void cl_emit_tile_render_mode_cfg(cl_builder_t *cl, tile_render_cfg_t cfg);
-void cl_emit_clear_colors(cl_builder_t *cl, uint64_t color, uint8_t clear_vg_mask, uint8_t clear_stencil);
+void cl_emit_clear_colors(cl_builder_t *cl, uint64_t color, uint32_t clear_z, uint8_t clear_vg_mask, uint8_t clear_stencil);
 void cl_emit_tile_coords(cl_builder_t *cl, uint8_t col, uint8_t row);
 
 typedef struct __attribute__((packed, aligned(16))) { 

@@ -100,13 +100,13 @@ void cl_emit_tile_render_mode_cfg(cl_builder_t *cl, tile_render_cfg_t cfg) {
     cl_emit_uint8(cl, flag2);
 }
 
-void cl_emit_clear_colors(cl_builder_t *cl, uint64_t color, uint8_t clear_vg_mask, uint8_t clear_stencil) {
+void cl_emit_clear_colors(cl_builder_t *cl, uint64_t color, uint32_t clear_z, uint8_t clear_vg_mask, uint8_t clear_stencil) {
     cl_emit_uint8(cl, CLEAR_COLORS);
     cl_emit_uint64(cl, color);
-    // Clear Z_S goes here but just doing this for now
-    cl_emit_uint8(cl, 0); // reserved  
-    cl_emit_uint8(cl, 0); // reserved 
-    cl_emit_uint8(cl, 0); // reserved 
+    // 24-bit Z clear value (little-endian): 0xFFFFFF = 1.0 (far plane)
+    cl_emit_uint8(cl, clear_z & 0xFF);
+    cl_emit_uint8(cl, (clear_z >> 8) & 0xFF);
+    cl_emit_uint8(cl, (clear_z >> 16) & 0xFF);
     cl_emit_uint8(cl, clear_vg_mask);
     cl_emit_uint8(cl, clear_stencil);
 }

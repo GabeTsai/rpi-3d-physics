@@ -1,0 +1,20 @@
+#ifndef GRAPHICS_SETTINGS_H
+#define GRAPHICS_SETTINGS_H
+
+typedef enum { 
+    DEPTH_TEST_NEVER = 0,
+    DEPTH_TEST_LT,
+    DEPTH_TEST_EQ, 
+    DEPTH_TEST_LEQ,
+    DEPTH_TEST_GT,
+    DEPTH_TEST_NE,
+    DEPTH_TEST_GE,
+    DEPTH_TEST_ALWAYS
+
+} DepthTestFunc;
+
+#include <stdint.h>
+#include <stdbool.h>
+#include "rpi.h"
+
+#endif

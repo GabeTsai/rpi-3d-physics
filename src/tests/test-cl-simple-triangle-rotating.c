@@ -9,6 +9,7 @@
 #include "mailbox-interface.h"
 #include "float-helpers.h"
 #include "transform.h"
+#include "graphics-settings.h"
 
 /*
 Tile Binning Pass CL:
@@ -109,8 +110,8 @@ void notmain(void) {
         .covg_pipe_select = false,
         .covg_update_mode = 0,
         .covg_read_mode = false,
-        .depth_test_func = 0, // always
-        .z_updates = false,
+        .depth_test_func = DEPTH_TEST_LT, // render objects closer to the camera over farther ones
+        .z_updates = true,
         .early_z = false,
         .early_z_updates = false,
     };
@@ -134,15 +135,15 @@ void notmain(void) {
     float xs_1_f = 32.0f;
     float ys_1_f = 0.0f;
     float xs_2_f = 32.0f;
-    float ys_2_f = 64.0f;
-    float xs_3_f = 64.0f;
+    float ys_2_f = 60.0f;
+    float xs_3_f = 60.0f;
     float ys_3_f = 32.0f;
     
     int16_t xs_1 = float_to_fixed12_4(xs_1_f);
     int16_t ys_1 = float_to_fixed12_4(ys_1_f);
     shaded_vertex_data_addr[0] = (nv_vertex_nch_nps_t) {
         .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
-        .zs = 0.5f,
+        .zs = 0.75f,
         .inv_wc = 1.0f,
         .varyings = { 1.0f, 0.0f, 0.0f }   // red
     };
@@ -219,7 +220,8 @@ void notmain(void) {
     output("rendering_cl_base_ptr_gpu: %x\n", rendering_cl_base_ptr_gpu);
     cl_init(&rendering_cl, rendering_cl_base_ptr, rendering_cl_base_ptr_gpu, rendering_capacity);
     
-    cl_emit_clear_colors(&rendering_cl, 0xFF000000FF000000ULL, 0, 0); // 
+    // clear all z values to 1.0 far plane 
+    cl_emit_clear_colors(&rendering_cl, 0xFF000000FF000000ULL, 0xFFFFFF, 0, 0); // Z clear = 1.0 (far plane) so LT depth test passes on first draw
 
     tile_render_cfg_t rendering_cfg = {
         .addr = fb.base_addr,
@@ -250,43 +252,42 @@ void notmain(void) {
     float zlevel = 0.5f;
     while (1) {
         // Update only the vertex buffer contents.
-
         vec3 res = rotate_xyz_around_point((vec3){xs_1_f, ys_1_f, zlevel},
                                         32.0f, 32.0f, 0.5f,
-                                        0.0f, theta, 0.0f);
+                                        0.75f*theta, theta, 1.5f*theta);
 
 
         int16_t xs_1 = float_to_fixed12_4(res.x);
         int16_t ys_1 = float_to_fixed12_4(res.y);
         shaded_vertex_data_addr[0] = (nv_vertex_nch_nps_t) {
             .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
-            .zs = res.z,
+            .zs = zlevel,   // screen-space rotation: depth is constant
             .inv_wc = 1.0f,
             .varyings = { 1.0f, 0.0f, 0.0f }   // red
         };
 
         res = rotate_xyz_around_point((vec3){xs_2_f, ys_2_f, zlevel},
                                 32.0f, 32.0f, 0.5f,
-                                0.0f, theta, 0.0f);
+                                0.75f*theta, theta, 1.5f*theta);
         
         int16_t xs_2 = float_to_fixed12_4(res.x);
         int16_t ys_2 = float_to_fixed12_4(res.y);
         shaded_vertex_data_addr[1] = (nv_vertex_nch_nps_t) {
             .xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
-            .zs = res.z,
+            .zs = zlevel,
             .inv_wc = 1.0f,
             .varyings = { 0.0f, 1.0f, 0.0f }   // green
         };
 
         res = rotate_xyz_around_point((vec3){xs_3_f, ys_3_f, zlevel},
                         32.0f, 32.0f, 0.5f,
-                        0.0f, theta, 0.0f);
+                        0.75f*theta, theta, 1.5f*theta);
         
         int16_t xs_3 = float_to_fixed12_4(res.x);
         int16_t ys_3 = float_to_fixed12_4(res.y);
         shaded_vertex_data_addr[2] = (nv_vertex_nch_nps_t) {
             .xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
-            .zs = res.z,
+            .zs = zlevel,
             .inv_wc = 1.0f,
             .varyings = { 0.0f, 0.0f, 1.0f }   // blue
         };
@@ -336,55 +337,3 @@ void notmain(void) {
         delay_ms(10);
     }
 }
-
-// assert(sizeof(nv_vertex_nch_ps_t) == 28);
-    // uint8_t vertex_data_stride = sizeof(nv_vertex_nch_ps_t);
-    
-    // nv_vertex_nch_ps_t* shaded_vertex_data_addr = (nv_vertex_nch_ps_t*) kmalloc_aligned(vertex_data_stride * 3, 16);
-    // uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
-
-    // float xs_1_f = 0.0f;
-    // float ys_1_f = 20.0f;
-    // float xs_2_f = -20.0f;
-    // float ys_2_f = -20.0f;
-    // float xs_3_f = 20.0f;
-    // float ys_3_f = -20.0f;
-
-    // int16_t xs_1 = float_to_fixed12_4(xs_1_f);
-    // int16_t ys_1 = float_to_fixed12_4(ys_1_f);
-    // shaded_vertex_data_addr[0] = (nv_vertex_nch_ps_t) { 
-    //     .xc = xs_1_f/viewport_hw, .yc = ys_1_f/viewport_hh, .zc = 0.0f, .wc = 1.0f,
-    //     .packed_xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
-    //     .zs = 0.5f,
-    //     .inv_wc = 1.0f
-    // };
-
-    // int16_t xs_2 = float_to_fixed12_4(xs_2_f);
-    // int16_t ys_2 = float_to_fixed12_4(ys_2_f);
-    // shaded_vertex_data_addr[1] = (nv_vertex_nch_ps_t) { 
-    //     .xc = xs_2_f/viewport_hw, .yc = ys_2_f/viewport_hh, .zc = 0.0f, .wc = 1.0f,
-    //     .packed_xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
-    //     .zs = 0.5f,
-    //     .inv_wc = 1.0f
-    // };
-
-    // int16_t xs_3 = float_to_fixed12_4(xs_3_f);
-    // int16_t ys_3 = float_to_fixed12_4(ys_3_f);
-    // shaded_vertex_data_addr[2] = (nv_vertex_nch_ps_t) { 
-    //     .xc = xs_3_f/viewport_hw, .yc = ys_3_f/viewport_hh, .zc = 0.0f, .wc = 1.0f,
-    //     .packed_xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
-    //     .zs = 0.5f,
-    //     .inv_wc = 1.0f
-    // };
-
-    // uint8_t flag_bits = 0x01; // no clip header no point size
-    // nv_shader_state_cfg_t shader_cfg = {  
-    //     .flag_bits = flag_bits, 
-    //     .vertex_data_stride = vertex_data_stride, 
-    //     .frag_shader_num_unifs = 0,
-    //     .frag_shader_num_varyings = 0,
-    //     .frag_shader_code_addr = frag_shader_code_addr_gpu,
-    //     .frag_shader_unif_addr = 0,
-    //     .shaded_vertex_data_addr = shaded_vertex_data_addr_gpu,
-    // };
-
