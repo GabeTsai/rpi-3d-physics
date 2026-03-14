@@ -9,7 +9,7 @@ typedef struct {
 
 typedef struct {
     vec3 v0, v1, v2;
-} tri3;
+} triangle;
 
 typedef struct {
     triangle *triangles;
@@ -61,7 +61,13 @@ typedef struct {
     vec3 torque;
 } rigid_body;
 
-int phys_body_clear_forces(phys_body *b);
-int phys_body_add_force(phys_body *b, vec3 f);
-int phys_body_add_torque(phys_body *b, vec3 t);
-int phys_body_integrate(phys_body *b, float dt);
+int phys_geom_init_sphere(rigid_body_geom *g, float radius, float mass);
+int phys_geom_init_box(rigid_body_geom *g, float hx, float hy, float hz, float mass);
+int phys_geom_init_capsule(rigid_body_geom *g, float radius, float half_height, float mass);
+
+/* if you do not want to auto-compute mesh inertia yet */
+int phys_geom_init_mesh(rigid_body_geom *g, triangle *tris, int tri_count, float mass,
+                        vec3 inertia_body);
+
+int phys_body_init(rigid_body *b, const rigid_body_geom *g,
+                   vec3 position, quat orientation);

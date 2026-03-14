@@ -35,10 +35,8 @@ static volatile float g_sink = 0.0f;
 // Simple helpers
 // -------------------------
 static void fill_pattern(matrix *m, float seed) {
-    // deterministic non-trivial values
     const size_t n = (size_t)m->rows * (size_t)m->cols;
     for (size_t i = 0; i < n; i++) {
-        // keep values in a reasonable range
         float x = seed + (float)(i % 1024) * 0.001f;
         m->entries[i] = sinf(x) + 0.1f * cosf(3.0f * x);
     }
@@ -46,7 +44,6 @@ static void fill_pattern(matrix *m, float seed) {
 
 static float checksum(const matrix *m) {
     const size_t n = (size_t)m->rows * (size_t)m->cols;
-    // cheap checksum (not numerically fancy)
     double acc = 0.0;
     for (size_t i = 0; i < n; i += 16) {
         acc += m->entries[i];
@@ -63,27 +60,30 @@ static void die(const char *msg) {
 // Benchmarks
 // -------------------------
 static void bench_add(int rows, int cols, int iters) {
-    matrix A, B, C;
-    if (matrix_init(&A, rows, cols) != 0) die("matrix_init A failed");
-    if (matrix_init(&B, rows, cols) != 0) die("matrix_init B failed");
-    if (matrix_init(&C, rows, cols) != 0) die("matrix_init C failed");
+    matrix A = matrix_init(rows, cols);
+    matrix B = matrix_init(rows, cols);
+    matrix C = {0};
+
+    if (!matrix_valid(&A) || !A.entries) die("matrix_init A failed");
+    if (!matrix_valid(&B) || !B.entries) die("matrix_init B failed");
 
     fill_pattern(&A, 0.1f);
     fill_pattern(&B, 1.3f);
 
-    // Warmup
     for (int i = 0; i < 5; i++) {
-        if (matrix_add(&C, &A, &B) != 0) die("matrix_add failed");
+        if (C.entries) matrix_free(&C);
+        C = matrix_add(&A, &B);
+        if (!matrix_valid(&C) || !C.entries) die("matrix_add failed");
     }
 
     uint64_t t0 = nsec_now();
     for (int i = 0; i < iters; i++) {
-        if (matrix_add(&C, &A, &B) != 0) die("matrix_add failed");
+        if (C.entries) matrix_free(&C);
+        C = matrix_add(&A, &B);
+        if (!matrix_valid(&C) || !C.entries) die("matrix_add failed");
     }
     double dt = sec_since(t0);
 
-    // Bandwidth estimate:
-    // read A + read B + write C = 3 arrays touched
     const double bytes = (double)rows * (double)cols * (double)sizeof(float) * 3.0 * (double)iters;
     const double gbps = bytes / dt / 1e9;
 
@@ -99,23 +99,27 @@ static void bench_add(int rows, int cols, int iters) {
 }
 
 static void bench_scale(int rows, int cols, int iters, float k) {
-    matrix A, C;
-    if (matrix_init(&A, rows, cols) != 0) die("matrix_init A failed");
-    if (matrix_init(&C, rows, cols) != 0) die("matrix_init C failed");
+    matrix A = matrix_init(rows, cols);
+    matrix C = {0};
+
+    if (!matrix_valid(&A) || !A.entries) die("matrix_init A failed");
 
     fill_pattern(&A, 0.7f);
 
     for (int i = 0; i < 5; i++) {
-        if (matrix_scale(&C, &A, k) != 0) die("matrix_scale failed");
+        if (C.entries) matrix_free(&C);
+        C = matrix_scale(&A, k);
+        if (!matrix_valid(&C) || !C.entries) die("matrix_scale failed");
     }
 
     uint64_t t0 = nsec_now();
     for (int i = 0; i < iters; i++) {
-        if (matrix_scale(&C, &A, k) != 0) die("matrix_scale failed");
+        if (C.entries) matrix_free(&C);
+        C = matrix_scale(&A, k);
+        if (!matrix_valid(&C) || !C.entries) die("matrix_scale failed");
     }
     double dt = sec_since(t0);
 
-    // read A + write C = 2 arrays touched
     const double bytes = (double)rows * (double)cols * (double)sizeof(float) * 2.0 * (double)iters;
     const double gbps = bytes / dt / 1e9;
 
@@ -130,26 +134,30 @@ static void bench_scale(int rows, int cols, int iters, float k) {
 }
 
 static void bench_gemm(int m, int k, int n, int iters) {
-    matrix A, B, C;
-    if (matrix_init(&A, m, k) != 0) die("matrix_init A failed");
-    if (matrix_init(&B, k, n) != 0) die("matrix_init B failed");
-    if (matrix_init(&C, m, n) != 0) die("matrix_init C failed");
+    matrix A = matrix_init(m, k);
+    matrix B = matrix_init(k, n);
+    matrix C = {0};
+
+    if (!matrix_valid(&A) || !A.entries) die("matrix_init A failed");
+    if (!matrix_valid(&B) || !B.entries) die("matrix_init B failed");
 
     fill_pattern(&A, 0.2f);
     fill_pattern(&B, 0.9f);
 
-    // Warmup
     for (int i = 0; i < 2; i++) {
-        if (matrix_gemm(&C, &A, &B) != 0) die("matrix_gemm failed");
+        if (C.entries) matrix_free(&C);
+        C = matrix_gemm(&A, &B);
+        if (!matrix_valid(&C) || !C.entries) die("matrix_gemm failed");
     }
 
     uint64_t t0 = nsec_now();
     for (int i = 0; i < iters; i++) {
-        if (matrix_gemm(&C, &A, &B) != 0) die("matrix_gemm failed");
+        if (C.entries) matrix_free(&C);
+        C = matrix_gemm(&A, &B);
+        if (!matrix_valid(&C) || !C.entries) die("matrix_gemm failed");
     }
     double dt = sec_since(t0);
 
-    // FLOPs for GEMM (naive multiply-add): 2*m*n*k
     const double flops = 2.0 * (double)m * (double)n * (double)k * (double)iters;
     const double gflops = flops / dt / 1e9;
 
@@ -172,8 +180,6 @@ int main(int argc, char **argv) {
 
     printf("matrix_perf starting...\n");
 
-    // Feel free to tweak sizes/iters.
-    // For add/scale, bump iters until time is > ~0.1s for stable measurements.
     bench_add(256, 256, 200);
     bench_add(512, 512, 80);
     bench_add(1024, 1024, 20);
@@ -182,12 +188,10 @@ int main(int argc, char **argv) {
     bench_scale(512, 512, 100, 0.75f);
     bench_scale(1024, 1024, 25, 0.75f);
 
-    // GEMM is expensive; keep iterations small.
     bench_gemm(128, 128, 128, 15);
     bench_gemm(256, 256, 256, 4);
     bench_gemm(512, 512, 512, 1);
 
-    // Make sure sink is used.
     printf("sink=%f\n", g_sink);
     return 0;
 }

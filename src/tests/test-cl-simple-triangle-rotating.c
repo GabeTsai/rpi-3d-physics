@@ -8,7 +8,7 @@
 #include "simple-frag-shader.h"
 #include "mailbox-interface.h"
 #include "float-helpers.h"
-#include "physics.h"
+#include "transform.h"
 
 /*
 Tile Binning Pass CL:
@@ -246,27 +246,94 @@ void notmain(void) {
 
     cl_emit_single_control_id(&rendering_cl, STORE_MSAA_TLCB_END);
 
-    PUT32(V3D_RFC, 1); // clear frame count
-    output("frame count before: %x\n", bits_get(GET32(V3D_RFC), 0, 7));
-    reset_cle_thread(1);
+    float theta = 0.0f;
+    while (1) {
+        // Update only the vertex buffer contents.
 
-    output("v3d base addr: %x\n", V3D_BASE);
-    
-    PUT32(V3D_CT1CA, rendering_cl.gpu_addr);
-    PUT32(V3D_CT1EA, rendering_cl.gpu_addr + rendering_cl.bytes_written);
+        vec3 res = rotate_xyz_around_point((vec3){xs_1_f, ys_1_f, 0.5f},
+                                        32.0f, 32.0f, 0.5f,
+                                        0.0f, 0.0f, theta);
 
-    int iter = 0;
-    while ((GET32(V3D_RFC) & 0xff) == 0) {}
-    assert(GET32(V3D_CT1CA) == GET32(V3D_CT1EA));
 
-    output("frame count after: %x\n", bits_get(GET32(V3D_RFC), 0, 7));
-    output("CT1CA after: %x CT1EA after : %x\n", GET32(V3D_CT1CA), GET32(V3D_CT1EA));
-    output("CT1CS CTERR: %b\n", bits_get(GET32(V3D_CT1CS), 0, 5));
-    output("PCS=%b\n", bits_get(GET32(V3D_PCS), 0, 8));
-    output("ERRSTAT=%b\n", bits_get(GET32(V3D_ERRSTAT), 0, 15));
-    output("DBGE=%b\n\n", bits_get(GET32(V3D_DBGE), 0, 20));
+        int16_t xs_1 = float_to_fixed12_4(res.x);
+        int16_t ys_1 = float_to_fixed12_4(res.y);
+        shaded_vertex_data_addr[0] = (nv_vertex_nch_nps_t) {
+            .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
+            .zs = res.z,
+            .inv_wc = 1.0f,
+            .varyings = { 1.0f, 0.0f, 0.0f }   // red
+        };
 
-    while(1);
+        res = rotate_xyz_around_point((vec3){xs_2_f, ys_2_f, 0.5f},
+                                32.0f, 32.0f, 0.5f,
+                                0.0f, 0.0f, theta);
+        
+        int16_t xs_2 = float_to_fixed12_4(res.x);
+        int16_t ys_2 = float_to_fixed12_4(res.y);
+        shaded_vertex_data_addr[1] = (nv_vertex_nch_nps_t) {
+            .xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
+            .zs = res.z,
+            .inv_wc = 1.0f,
+            .varyings = { 0.0f, 1.0f, 0.0f }   // green
+        };
+
+        res = rotate_xyz_around_point((vec3){xs_3_f, ys_3_f, 0.5f},
+                        32.0f, 32.0f, 0.5f,
+                        0.0f, 0.0f, theta);
+        
+        int16_t xs_3 = float_to_fixed12_4(res.x);
+        int16_t ys_3 = float_to_fixed12_4(res.y);
+        shaded_vertex_data_addr[2] = (nv_vertex_nch_nps_t) {
+            .xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
+            .zs = res.z,
+            .inv_wc = 1.0f,
+            .varyings = { 0.0f, 0.0f, 1.0f }   // blue
+        };
+
+        // BINNING PASS
+        PUT32(V3D_BFC, 0b1);
+        reset_cle_thread(0);
+        PUT32(V3D_CT0CA, binning_cl.gpu_addr);
+        PUT32(V3D_CT0EA, binning_cl.gpu_addr + binning_cl.bytes_written);
+
+        while ((GET32(V3D_BFC) & 0xff) == 0) {
+        }
+
+        assert(GET32(V3D_CT0CA) == GET32(V3D_CT0EA));
+
+        // Optional debug
+        // output("flush count after: %x\n", bits_get(GET32(V3D_BFC), 0, 7));
+        // output("CT0CA after: %x CT0EA after : %x\n", GET32(V3D_CT0CA), GET32(V3D_CT0EA));
+        // output("CT0CS CTERR: %b\n", bits_get(GET32(V3D_CT0CS), 0, 5));
+        // output("PCS=%b\n", bits_get(GET32(V3D_PCS), 0, 8));
+        // output("ERRSTAT=%b\n", bits_get(GET32(V3D_ERRSTAT), 0, 15));
+        // output("DBGE=%b\n", bits_get(GET32(V3D_DBGE), 0, 20));
+        // output("ptb tile list completed\n\n");
+
+        // RENDER PASS
+        PUT32(V3D_RFC, 1);
+        reset_cle_thread(1);
+        PUT32(V3D_CT1CA, rendering_cl.gpu_addr);
+        PUT32(V3D_CT1EA, rendering_cl.gpu_addr + rendering_cl.bytes_written);
+
+        while ((GET32(V3D_RFC) & 0xff) == 0) {
+        }
+
+        assert(GET32(V3D_CT1CA) == GET32(V3D_CT1EA));
+
+        // output("frame count after: %x\n", bits_get(GET32(V3D_RFC), 0, 7));
+        // output("CT1CA after: %x CT1EA after : %x\n", GET32(V3D_CT1CA), GET32(V3D_CT1EA));
+        // output("CT1CS CTERR: %b\n", bits_get(GET32(V3D_CT1CS), 0, 5));
+        // output("PCS=%b\n", bits_get(GET32(V3D_PCS), 0, 8));
+        // output("ERRSTAT=%b\n", bits_get(GET32(V3D_ERRSTAT), 0, 15));
+        // output("DBGE=%b\n\n", bits_get(GET32(V3D_DBGE), 0, 20));
+
+        theta += 0.01f;
+        // if (theta > 20.0f)
+        //     theta = -20.0f;
+
+        delay_ms(10);
+    }
 }
 
 // assert(sizeof(nv_vertex_nch_ps_t) == 28);
@@ -319,3 +386,4 @@ void notmain(void) {
     //     .frag_shader_unif_addr = 0,
     //     .shaded_vertex_data_addr = shaded_vertex_data_addr_gpu,
     // };
+
