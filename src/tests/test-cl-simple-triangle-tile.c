@@ -33,21 +33,34 @@ Tile Rendering CL:
 
     Halt
 */
-# define NUM_TILES 1
 
 void notmain(void) { 
     kmalloc_init(10);
     mbox_response_t response = RPI_qpu_enable(1);
 
+    int p_width = 128;
+    int p_height = 128;
+    int width_tiles = p_width / 64;
+    int height_tiles = p_height / 64;
+
     output("V3D_IDENT0: %b\n", GET32(V3D_IDENT0));
-    fb_info_t fb = RPI_fb_init(64, 64, 64, 64, 32);
+    fb_info_t fb = RPI_fb_init(p_width, p_height, p_width, p_height, 32);
+    
+    render_state_t render_state = {
+        .fb_base_addr = fb.base_addr,
+        .width_px = p_width,
+        .height_px = p_height,
+        .width_tiles = width_tiles,
+        .height_tiles = height_tiles,
+    };
+
     output("fb.base_addr: %x\n", fb.base_addr);
     output("fb cpu addr: %x\n", BUS_TO_CPU(fb.base_addr));
     uint32_t *fb_cpu = (uint32_t *)BUS_TO_CPU(fb.base_addr);
     output("before: %x %x %x %x\n", fb_cpu[0], fb_cpu[1], fb_cpu[2], fb_cpu[3]);
 
     cl_builder_t binning_cl;
-    binning_state_t binning_state = cl_init_binning(&binning_cl, 1, 1, 64, 64);
+    binning_state_t binning_state = cl_init_binning(&binning_cl, width_tiles, height_tiles, p_width, p_height);
     
     uint32_t* frag_shader_code_addr = (uint32_t*) simple_frag_shader;
     uint32_t frag_shader_code_addr_gpu = CPU_TO_BUS(frag_shader_code_addr);
@@ -58,15 +71,15 @@ void notmain(void) {
     uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
     
     nv_vertex_nch_nps_t *shaded_vertex_data_addr =
-        (nv_vertex_nch_nps_t *) kmalloc_aligned(vertex_data_stride * 6, 16);
+        (nv_vertex_nch_nps_t *) kmalloc_aligned(vertex_data_stride * 3, 16);
     uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
     
-    float xs_1_f = 32.0f;
-    float ys_1_f = 12.0f;
-    float xs_2_f = 12.0f;
-    float ys_2_f = 52.0f;
-    float xs_3_f = 52.0f;
-    float ys_3_f = 52.0f;
+    float xs_1_f = 64.0f;
+    float ys_1_f = 44.0f;
+    float xs_2_f = 44.0f;
+    float ys_2_f = 84.0f;
+    float xs_3_f = 84.0f;
+    float ys_3_f = 84.0f;
     
     int16_t xs_1 = float_to_fixed12_4(xs_1_f);
     int16_t ys_1 = float_to_fixed12_4(ys_1_f);
@@ -94,40 +107,6 @@ void notmain(void) {
         .inv_wc = 1.0f,
         // .varyings = { 0.0f, 0.0f, 1.0f }   // blue
     };
-
-    xs_1_f = 0.0f;
-    ys_1_f = 0.0f;
-    xs_2_f = 10.0f;
-    ys_2_f = 0.0f;
-    xs_3_f = 10.0f;
-    ys_3_f = 10.0f;
-
-    xs_1 = float_to_fixed12_4(xs_1_f);
-    ys_1 = float_to_fixed12_4(ys_1_f);
-    shaded_vertex_data_addr[3] = (nv_vertex_nch_nps_t) {
-        .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
-        .zs = 0.5f,
-        .inv_wc = 1.0f,
-        // .varyings = { 1.0f, 0.0f, 0.0f }   // red
-    };
-
-    xs_2 = float_to_fixed12_4(xs_2_f);
-    ys_2 = float_to_fixed12_4(ys_2_f);
-    shaded_vertex_data_addr[4] = (nv_vertex_nch_nps_t) {
-        .xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
-        .zs = 0.5f,
-        .inv_wc = 1.0f,
-        // .varyings = { 0.0f, 1.0f, 0.0f }   // green
-    };
-    
-    xs_3 = float_to_fixed12_4(xs_3_f);
-    ys_3 = float_to_fixed12_4(ys_3_f);
-    shaded_vertex_data_addr[5] = (nv_vertex_nch_nps_t) {
-        .xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
-        .zs = 0.5f,
-        .inv_wc = 1.0f,
-        // .varyings = { 0.0f, 0.0f, 1.0f }   // blue
-    };
     
     uint8_t flag_bits = 0x01;   // no clip header, no point size
     
@@ -147,9 +126,6 @@ void notmain(void) {
     indices[0] = 0;
     indices[1] = 1;
     indices[2] = 2;
-    indices[3] = 3;
-    indices[4] = 4;
-    indices[5] = 5;
 
     cl_emit_indexed_primitive_list(&binning_cl, (indexed_primitive_list_cfg_t) {
         .primitive_mode = 4,
@@ -158,39 +134,20 @@ void notmain(void) {
         .index_data_addr = CPU_TO_BUS(indices),
         .max_index = 5,
     });
-    
+    // page 64 - binning list must end with flush all state to update tile state data
     cl_emit_single_control_id(&binning_cl, FLUSH_ALL_STATE);
-    output("\n");
     
+    output("flush count before: %x\n", get_flush_count());
     cl_bin_one_frame(&binning_cl);
-
     output("flush count after: %x\n", get_flush_count());
-    output("CT0CA after: %x CT0EA after : %x\n", get_ctnca(0), get_ctncea(0));
-    output("CT0CS CTERR: %b\n", bits_get(get_ctncs(0), 0, 5));
-    output("PCS=%b\n", get_pcs());
-    output("ERRSTAT=%b\n", get_errstat());
-    output("DBGE=%b\n", get_dbge());    
-    output("ptb tile list completed\n\n");
 
     // // RENDERING PASS
     cl_builder_t rendering_cl;
-    cl_init_rendering(&rendering_cl, binning_state.tile_alloc_addr, (render_state_t) {
-        .fb_base_addr = fb.base_addr,
-        .width_px = 64,
-        .height_px = 64,
-        .width_tiles = 1,
-        .height_tiles = 1,
-    });
+    cl_init_rendering(&rendering_cl, binning_state.tile_alloc_addr, render_state);
 
-    output("frame count before: %x\n", bits_get(GET32(V3D_RFC), 0, 7));
+    output("frame count before: %x\n", get_frame_count());
     cl_render_one_frame(&rendering_cl);
-
-    output("frame count after: %x\n", bits_get(GET32(V3D_RFC), 0, 7));
-    output("CT1CA after: %x CT1EA after : %x\n", GET32(V3D_CT1CA), GET32(V3D_CT1EA));
-    output("CT1CS CTERR: %b\n", bits_get(GET32(V3D_CT1CS), 0, 5));
-    output("PCS=%b\n", bits_get(GET32(V3D_PCS), 0, 8));
-    output("ERRSTAT=%b\n", bits_get(GET32(V3D_ERRSTAT), 0, 15));
-    output("DBGE=%b\n\n", bits_get(GET32(V3D_DBGE), 0, 20));
+    output("frame count after: %x\n", get_frame_count());
 
     while(1);
 }

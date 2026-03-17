@@ -1,4 +1,5 @@
 #include "cl.h"
+#include "cl-interface.h"
 
 binning_state_t cl_init_binning(cl_builder_t *cl, uint8_t width_tiles, uint8_t height_tiles,
                                 uint16_t width_px, uint16_t height_px) {
@@ -22,7 +23,8 @@ binning_state_t cl_init_binning(cl_builder_t *cl, uint8_t width_tiles, uint8_t h
 
     configuration_bits_t cfg = default_configuration_bits();
     cl_emit_configuration_bits(cl, cfg);
-
+    
+    clear_flush_count();
     return (binning_state_t) {
         .tile_alloc_addr = tile_alloc_addr,
         .tile_state_data_addr = tile_state_data_addr,
@@ -37,20 +39,30 @@ void cl_bin_one_frame(cl_builder_t *cl) {
     assert(GET32(V3D_CT0CA) == GET32(V3D_CT0EA));
 }
 
-void cl_init_rendering(cl_builder_t *cl, uint32_t fb_base_addr, uint32_t tile_alloc_addr) {
+void cl_init_rendering(cl_builder_t *cl, uint32_t tile_alloc_addr, render_state_t rs) {
     uint8_t *cl_buf = (uint8_t *) kmalloc(CL_BUF_SIZE_DEF);
     cl_init(cl, cl_buf, CPU_TO_BUS(cl_buf), CL_BUF_SIZE_DEF);
 
     cl_emit_clear_colors(cl, 0xFF000000FF000000ULL, 0xFFFFFF, 0, 0);
-    tile_render_cfg_t render_cfg = default_tile_render_cfg(fb_base_addr);
+    tile_render_cfg_t render_cfg = default_tile_render_cfg(rs.fb_base_addr, rs.width_px, rs.height_px);
     cl_emit_tile_render_mode_cfg(cl, render_cfg);
 
     cl_clear_tlb(cl);
 
-    cl_emit_tile_coords(cl, 0, 0);
-    cl_emit_branch_to_sublist(cl, tile_alloc_addr + 32 * (0 * 1 + 0));
+    for (uint32_t y = 0; y < rs.height_tiles; y++) { 
+        for (uint32_t x = 0; x < rs.width_tiles; x++) { 
+            cl_emit_tile_coords(cl, x, y);
+            cl_emit_branch_to_sublist(cl, tile_alloc_addr + TILE_ALLOC_ENTRY_SIZE * (y * rs.width_tiles + x));
 
-    cl_emit_single_control_id(cl, STORE_MSAA_TLCB_END);
+            if (x == rs.width_tiles - 1 && y == rs.height_tiles - 1) { 
+                cl_emit_single_control_id(cl, STORE_MSAA_TLCB_END);
+            } else { 
+                cl_emit_single_control_id(cl, STORE_MSAA_TLCB);
+            }
+        }
+    }
+
+    clear_frame_count();
 }
 
 void cl_render_one_frame(cl_builder_t *cl) {

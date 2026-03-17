@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "rpi.h"
 #include "mailbox.h"
+#include "bit-support.h"
 
 // https://docs.broadcom.com/doc/12358545
 
@@ -55,5 +56,54 @@ typedef enum {
 
 void reset_cle_thread(int thread_id);
 bool is_cle_thread_running(int thread_id);
+
+static inline uint32_t get_ctnreg(uint32_t ct_reg, int thread_id) { 
+    if (thread_id == 0) { 
+        return GET32(ct_reg);
+    } else if (thread_id == 1) { 
+        return GET32(ct_reg + 4);
+    } else { 
+        panic("invalid thread id: %d", thread_id);
+    }
+}
+static inline uint32_t get_ctnca(int thread_id) { 
+    return get_ctnreg(V3D_CT0CA, thread_id);
+}
+
+static inline uint32_t get_ctncea(int thread_id) { 
+    return get_ctnreg(V3D_CT0EA, thread_id);
+}
+
+static inline uint32_t get_ctncs(int thread_id) { 
+    return get_ctnreg(V3D_CT0CS, thread_id);
+}
+
+static inline uint32_t get_pcs(void) { 
+    return bits_get(GET32(V3D_PCS), 0, 8);
+}
+
+static inline uint32_t get_errstat(void) { 
+    return bits_get(GET32(V3D_ERRSTAT), 0, 15);
+}
+
+static inline uint32_t get_dbge(void) { 
+    return bits_get(GET32(V3D_DBGE), 0, 20);
+}
+
+static inline uint32_t get_flush_count(void) { 
+    return bits_get(GET32(V3D_BFC), 0, 7);
+}
+
+static inline uint32_t get_frame_count(void) { 
+    return bits_get(GET32(V3D_RFC), 0, 7);
+}
+
+static inline void clear_flush_count(void) { 
+    PUT32(V3D_BFC, 0b1);
+}
+
+static inline void clear_frame_count(void) { 
+    PUT32(V3D_RFC, 0b1);
+}
 
 #endif

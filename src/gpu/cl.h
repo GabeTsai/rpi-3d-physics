@@ -58,11 +58,11 @@ static inline configuration_bits_t default_configuration_bits(void) {
     };
 }
 
-static inline tile_render_cfg_t default_tile_render_cfg(uint32_t fb_base_addr) {
+static inline tile_render_cfg_t default_tile_render_cfg(uint32_t fb_base_addr, uint16_t width_px, uint16_t height_px) {
     return (tile_render_cfg_t) {
         .addr = fb_base_addr,
-        .width = 64,
-        .height = 64,
+        .width = width_px,
+        .height = height_px,
         .multisample_mode = false,
         .hdr_on = false,
         .no_hdr_fb_c_format = 1, // rgba8888
@@ -72,12 +72,20 @@ static inline tile_render_cfg_t default_tile_render_cfg(uint32_t fb_base_addr) {
     };
 }
 
+typedef struct { 
+    uint16_t width_px;
+    uint16_t height_px;
+    uint8_t width_tiles;
+    uint8_t height_tiles;
+    uint32_t fb_base_addr;
+} render_state_t;
+
 binning_state_t cl_init_binning(cl_builder_t *cl, uint8_t width_tiles, uint8_t height_tiles,
                                 uint16_t width_px, uint16_t height_px);
 
 void cl_bin_one_frame(cl_builder_t *cl);
 
-void cl_init_rendering(cl_builder_t *cl, uint32_t fb_base_addr, uint32_t tile_alloc_addr);
+void cl_init_rendering(cl_builder_t *cl, uint32_t tile_alloc_addr, render_state_t render_state);
 
 void cl_render_one_frame(cl_builder_t *cl);
 #endif
