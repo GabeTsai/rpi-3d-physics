@@ -10,7 +10,7 @@ static inline vec3 transform_xyz(const matrix *T, vec3 p) {
     float oy = entries[4] * p.x + entries[5] * p.y + entries[6] * p.z + entries[7];
     float oz = entries[8] * p.x + entries[9] * p.y + entries[10] * p.z + entries[11];
 
-    return (vec3){ox, oy, oz};
+    return (vec3){.x = ox, .y = oy, .z =oz};
 }
 
 static inline vec3 rotate_xyz_around_point(vec3 p,

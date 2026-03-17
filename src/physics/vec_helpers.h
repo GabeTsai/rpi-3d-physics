@@ -1,35 +1,46 @@
 #pragma once
 
-#include <math.h>
+#include "rpi.h"
+#include "rpi-math.h"
 #include "physics.h"
 
 static inline vec3 vec3_make(float x, float y, float z) {
-    vec3 v = {x, y, z};
+    vec3 v = {.x = x, .y = y, .z = z};
     return v;
 }
 
+static inline vec3 vec3_init(float v) { 
+    return vec3_make(v, v, v);
+}
+
+static inline void vec3_to_arr(vec3 v, float out[3]) { 
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
 static inline vec3 vec3_zero(void) {
-    vec3 v = {0.0f, 0.0f, 0.0f};
+    vec3 v = {.x = 0.0f, .y = 0.0f, .z = 0.0f};
     return v;
 }
 
 static inline vec3 vec3_add(vec3 a, vec3 b) {
-    vec3 r = {a.x + b.x, a.y + b.y, a.z + b.z};
+    vec3 r = {.x = a.x + b.x, .y = a.y + b.y, .z = a.z + b.z};
     return r;
 }
 
 static inline vec3 vec3_sub(vec3 a, vec3 b) {
-    vec3 r = {a.x - b.x, a.y - b.y, a.z - b.z};
+    vec3 r = {.x = a.x - b.x, .y = a.y - b.y, .z = a.z - b.z};
     return r;
 }
 
 static inline vec3 vec3_scale(vec3 a, float s) {
-    vec3 r = {a.x * s, a.y * s, a.z * s};
+    vec3 r = {.x = a.x * s, .y = a.y * s, .z = a.z * s};
     return r;
 }
 
 static inline vec3 vec3_hadamard(vec3 a, vec3 b) {
-    vec3 r = {a.x * b.x, a.y * b.y, a.z * b.z};
+    vec3 r = {.x = a.x * b.x, .y = a.y * b.y, .z = a.z * b.z};
     return r;
 }
 
@@ -39,9 +50,9 @@ static inline float vec3_dot(vec3 a, vec3 b) {
 
 static inline vec3 vec3_cross(vec3 a, vec3 b) {
     vec3 r = {
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x
+        .x = a.y * b.z - a.z * b.y,
+        .y = a.z * b.x - a.x * b.z,
+        .z =a.x * b.y - a.y * b.x
     };
     return r;
 }
@@ -58,4 +69,17 @@ static inline vec3 vec3_normalize(vec3 a) {
     float n = vec3_norm(a);
     if (n <= 1e-8f) return vec3_zero();
     return vec3_scale(a, 1.0f / n);
+}
+
+static inline vec3 vec3_face_norm(vec3 a, vec3 b, vec3 c) { 
+    vec3 e1 = vec3_sub(b, a);
+    vec3 e2 = vec3_sub(c, a);
+    vec3 n = vec3_cross(e1, e2);
+    return vec3_normalize(n);
+}
+
+static inline float vec3_sun_intensity(vec3 light_dir,vec3 a, vec3 b, vec3 c, float ambient_intensity) {
+    vec3 light_norm = vec3_normalize(light_dir);
+    vec3 face_norm = vec3_face_norm(a, b, c);
+    return fmaxf(ambient_intensity, vec3_dot(light_norm, face_norm));
 }

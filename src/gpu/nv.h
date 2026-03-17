@@ -26,10 +26,10 @@ typedef struct {
     float zc;
     float wc;
 
-    uint32_t packed_xs_ys;
+    uint32_t xs_ys;
     float zs;
     float inv_wc;
-    float varyings[MAX_VARYINGS];
-} nv_vertex_nch_ps_t;  // clip header, no point size
+    // float varyings[MAX_VARYINGS];
+} __attribute__((packed)) nv_vertex_ch_nps_t;  // clip header, no point size
 
 #endif

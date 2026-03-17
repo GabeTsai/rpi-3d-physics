@@ -5,7 +5,8 @@
 #include <stdint.h>
 #include <time.h>
 #include <string.h>
-#include <math.h>
+#include "rpi.h"
+#include "rpi-math.h"
 
 #include "matrix.h"
 

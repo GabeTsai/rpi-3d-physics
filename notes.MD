@@ -60,3 +60,11 @@ The vertex shader takes vertex attributes supplied in memory, does a few math op
 3. Fetch vertex attributes to VPM using VCD (Vertex Cache DMA)
 4. Load in pre-shaded vertex data from memory to VPM (or pre-compute them with a QPU kernel)
 5. PTB/PSE reads shaded vertex data from VPM
+
+#### Aside on the NV clip header no point size shaded vertex format
+
+**3/17/26, 4:08 AM** - The hardware clipping path for NV pre-shaded vertices is very finnicky and we decided to prioritize getting a stable end-to-end renderer and physics engine. There are no working public references that use this particular NV shaded vertex format. 
+
+Despite theoretical minimal modification to the simple triangle render test to that would enable hardware clipping, we spent around 24 hours combined dev time trying to get it to work. After at least 12 - 15 different fixes (while maintaining the as small code deltas as possible), we proved that the tile binning phase was working correctly - a dump of a heap allocated array that the PTB's internal logic fills with primitive data before and after execution of the binning control list showed the array went from all zeros to containing valid primitive data. Yet, the rendering pass completely failed. Hardware clipping is most useful if vertices end up behind the camera (W_c is negative) - since we divide clip space coordinates by W_c, this inverts position, resulting in inside out triangles that fill the screen with garbage. We should be able to mimick the hardware clipping functionality with a CPU function - it will cost a bit more compute but the check should be O(n) for n triangles.
+-Gabe  
+

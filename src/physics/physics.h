@@ -1,10 +1,12 @@
 #pragma once
 
-#include <math.h>
+#include "rpi.h"
+#include "rpi-math.h"
 #include <string.h>
 
-typedef struct {
-    float x, y, z;
+typedef union {
+    struct { float x, y, z; };
+    struct { float r, g, b; };
 } vec3;
 
 typedef struct {

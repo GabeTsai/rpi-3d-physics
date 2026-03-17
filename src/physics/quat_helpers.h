@@ -1,6 +1,7 @@
 #pragma once
 
-#include <math.h>
+#include "rpi.h"
+#include "rpi-math.h"
 #include "physics.h"
 
 static inline quat quat_make(float w, float x, float y, float z) {
@@ -65,7 +66,7 @@ static inline vec3 quat_rotate_vec3(quat q, vec3 v) {
     quat p = {0.0f, v.x, v.y, v.z};
     quat qn = quat_normalize(q);
     quat r = quat_mul(quat_mul(qn, p), quat_conjugate(qn));
-    vec3 out = {r.x, r.y, r.z};
+    vec3 out = {.x = r.x, .y = r.y, .z = r.z};
     return out;
 }
 

@@ -3,7 +3,7 @@
 #include "quat_helpers.h"
 
 static vec3 phys_safe_inv_vec3(vec3 v) {
-    vec3 out = {0.0f, 0.0f, 0.0f};
+    vec3 out = {.x = 0.0f, .y = 0.0f, .z = 0.0f};
 
     if (v.x != 0.0f) out.x = 1.0f / v.x;
     if (v.y != 0.0f) out.y = 1.0f / v.y;
@@ -43,8 +43,8 @@ int phys_geom_init_sphere(rigid_body_geom *g, float radius, float mass) {
         return phys_geom_set_mass_properties(g, mass, vec3_zero());
     }
 
-    float I = (2.0f / 5.0f) * mass * radius * radius;
-    vec3 inertia = { I, I, I };
+    float Isphere = (2.0f / 5.0f) * mass * radius * radius;
+    vec3 inertia = {.x = Isphere, .y = Isphere, .z = Isphere };
 
     return phys_geom_set_mass_properties(g, mass, inertia);
 }
@@ -64,9 +64,9 @@ int phys_geom_init_box(rigid_body_geom *g, float hx, float hy, float hz, float m
     }
 
     vec3 inertia = {
-        (1.0f / 3.0f) * mass * (hy * hy + hz * hz),
-        (1.0f / 3.0f) * mass * (hx * hx + hz * hz),
-        (1.0f / 3.0f) * mass * (hx * hx + hy * hy)
+        .x = (1.0f / 3.0f) * mass * (hy * hy + hz * hz),
+        .y = (1.0f / 3.0f) * mass * (hx * hx + hz * hz),
+        .z =(1.0f / 3.0f) * mass * (hx * hx + hy * hy)
     };
 
     return phys_geom_set_mass_properties(g, mass, inertia);
@@ -94,9 +94,9 @@ int phys_geom_init_capsule(rigid_body_geom *g, float radius, float half_height, 
     float h = 2.0f * approx_half_height;
 
     vec3 inertia = {
-        (1.0f / 12.0f) * mass * (3.0f * radius * radius + h * h),
-        (1.0f / 12.0f) * mass * (3.0f * radius * radius + h * h),
-        0.5f * mass * radius * radius
+        .x = (1.0f / 12.0f) * mass * (3.0f * radius * radius + h * h),
+        .y =(1.0f / 12.0f) * mass * (3.0f * radius * radius + h * h),
+        .z = 0.5f * mass * radius * radius
     };
 
     return phys_geom_set_mass_properties(g, mass, inertia);
