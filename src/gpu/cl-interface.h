@@ -171,6 +171,8 @@ typedef struct {
 typedef enum { 
     POINTS = 0,
     LINES, 
+    LINE_LOOP,
+    LINE_STRIP,
     TRIANGLES,
     RHT
 } PrimitiveType;

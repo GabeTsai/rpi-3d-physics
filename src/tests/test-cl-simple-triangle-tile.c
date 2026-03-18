@@ -2,15 +2,12 @@
 #include "mailbox-interface.h"
 #include "cl-interface.h"
 #include "cl.h"
+#include "geom.h"
 #include "nv.h"
 #include "v3d.h"
 #include "stdint.h"
-#include "bit-support.h"
-#include "simple-frag-shader.h"
+#include "frag-shader-fixed-light.h"
 #include "mailbox-interface.h"
-#include "float-helpers.h"
-#include "physics.h"
-#include "graphics-settings.h"
 
 void notmain(void) { 
     kmalloc_init(10);
@@ -40,7 +37,7 @@ void notmain(void) {
     cl_builder_t binning_cl;
     binning_state_t binning_state = cl_init_binning(&binning_cl, width_tiles, height_tiles, p_width, p_height);
     
-    uint32_t* frag_shader_code_addr = (uint32_t*) simple_frag_shader;
+    uint32_t* frag_shader_code_addr = (uint32_t*) frag_shader_fixed_light;
     uint32_t frag_shader_code_addr_gpu = CPU_TO_BUS(frag_shader_code_addr);
     output("frag_shader_code_addr: %x\n", frag_shader_code_addr);
     output("frag_shader_code_addr_gpu: %x\n", frag_shader_code_addr_gpu);
@@ -52,68 +49,23 @@ void notmain(void) {
         (nv_vertex_nch_nps_t *) kmalloc_aligned(vertex_data_stride * 3, 16);
     uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
     
-    float xs_1_f = 64.0f;
-    float ys_1_f = 44.0f;
-    float xs_2_f = 44.0f;
-    float ys_2_f = 84.0f;
-    float xs_3_f = 84.0f;
-    float ys_3_f = 84.0f;
-    
-    int16_t xs_1 = float_to_fixed12_4(xs_1_f);
-    int16_t ys_1 = float_to_fixed12_4(ys_1_f);
-    shaded_vertex_data_addr[0] = (nv_vertex_nch_nps_t) {
-        .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
-        .zs = 0.5f,
-        .inv_wc = 1.0f,
-        // .varyings = { 1.0f, 0.0f, 0.0f }   // red
-    };
-    
-    int16_t xs_2 = float_to_fixed12_4(xs_2_f);
-    int16_t ys_2 = float_to_fixed12_4(ys_2_f);
-    shaded_vertex_data_addr[1] = (nv_vertex_nch_nps_t) {
-        .xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
-        .zs = 0.5f,
-        .inv_wc = 1.0f,
-        // .varyings = { 0.0f, 1.0f, 0.0f }   // green
-    };
-    
-    int16_t xs_3 = float_to_fixed12_4(xs_3_f);
-    int16_t ys_3 = float_to_fixed12_4(ys_3_f);
-    shaded_vertex_data_addr[2] = (nv_vertex_nch_nps_t) {
-        .xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
-        .zs = 0.5f,
-        .inv_wc = 1.0f,
-        // .varyings = { 0.0f, 0.0f, 1.0f }   // blue
-    };
-    
-    uint8_t flag_bits = 0x01;   // no clip header, no point size
-    
-    nv_shader_state_cfg_t shader_cfg = {
-        .flag_bits = flag_bits,
-        .vertex_data_stride = vertex_data_stride,
-        .frag_shader_num_unifs = 0,
-        .frag_shader_num_varyings = MAX_VARYINGS,
-        .frag_shader_code_addr = frag_shader_code_addr_gpu,
-        .frag_shader_unif_addr = 0,
-        .shaded_vertex_data_addr = shaded_vertex_data_addr_gpu,
-    };
+    uint16_t *indices = kmalloc_aligned(6 * sizeof(uint16_t), 4);
 
-    nv_shader_state_cfg_t* nv_shader_record = cl_emit_nv_shader_state(&binning_cl, shader_cfg);
+    float xs_1_f = 0.0f;
+    float ys_1_f = -20.0f;
+    float xs_2_f = -20.0f;
+    float ys_2_f = 20.0f;
+    float xs_3_f = 20.0f;
+    float ys_3_f = 20.0f;
 
-    uint8_t *indices = kmalloc_aligned(6 * sizeof(uint8_t), 4);
-    indices[0] = 0;
-    indices[1] = 1;
-    indices[2] = 2;
+    uint16_t total_verts = 0;
+    triangle tri = triangle_make_from_pts(xs_1_f, ys_1_f, xs_2_f, ys_2_f, xs_3_f, ys_3_f, 0.5f);
+    mesh_geom mesh = mesh_geom_init_triangle(tri, 1.0f, 0.0f, 0.0f);
+    put_mesh_geom_to_nv(mesh, indices, shaded_vertex_data_addr);
+    total_verts += 3;
 
-    cl_emit_indexed_primitive_list(&binning_cl, (indexed_primitive_list_cfg_t) {
-        .primitive_mode = 4,
-        .index_type = 0, // 8-bit indices
-        .num_vertices = 6,
-        .index_data_addr = CPU_TO_BUS(indices),
-        .max_index = 5,
-    });
-    // page 64 - binning list must end with flush all state to update tile state data
-    cl_emit_single_control_id(&binning_cl, FLUSH_ALL_STATE);
+    cl_bin_primitives(&binning_cl, vertex_data_stride, frag_shader_code_addr_gpu, 
+shaded_vertex_data_addr_gpu, indices, total_verts);
     
     output("flush count before: %x\n", get_flush_count());
     cl_bin_one_frame(&binning_cl);

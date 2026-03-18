@@ -50,18 +50,18 @@ void notmain(void) {
         (nv_vertex_nch_nps_t *) kmalloc_aligned(vertex_data_stride * 3, 16);
     uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
     
-    float xs_1_f = 64.0f;
-    float ys_1_f = 44.0f;
+    float xs_1_f = 0.0f;
+    float ys_1_f = -20.0f;
     float zs_1_f = 0.0f;
-    float xs_2_f = 44.0f;
-    float ys_2_f = 84.0f;
+    float xs_2_f = -20.0f;
+    float ys_2_f = 20.0f;
     float zs_2_f = 0.0f;
-    float xs_3_f = 84.0f;
-    float ys_3_f = 84.0f;
+    float xs_3_f = 20.0f;
+    float ys_3_f = 20.0f;
     float zs_3_f = 0.0f;
 
     float zlevel = 0.5f;
-
+   
     float ambient_intensity = 0.3f;
 
     vec3 v1 = vec3_make(xs_1_f, ys_1_f, zs_1_f);
@@ -150,15 +150,15 @@ void notmain(void) {
     while (1) {
         // Update only the vertex buffer contents.
         v1 = rotate_xyz_around_point((vec3){.x = xs_1_f, .y = ys_1_f, .z = zlevel},
-                                        32.0f, 32.0f, 0.5f,
+                                        0.0f, 0.0f, 0.5f,
                                         0.75f*theta, theta, 1.5f*theta);
 
         v2 = rotate_xyz_around_point((vec3){.x = xs_2_f, .y = ys_2_f, .z = zlevel},
-                                32.0f, 32.0f, 0.5f,
+                                0.0f, 0.0f, 0.5f,
                                 0.75f*theta, theta, 1.5f*theta);
         
         v3 = rotate_xyz_around_point((vec3){.x = xs_3_f, .y = ys_3_f, .z = zlevel},
-                        32.0f, 32.0f, 0.5f,
+                        0.0f, 0.0f, 0.5f,
                         0.75f*theta, theta, 1.5f*theta);
         
         intensity = vec3_sun_intensity(light_dir, v1, v2, v3, ambient_intensity);

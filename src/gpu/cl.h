@@ -6,11 +6,11 @@
 #include "stdbool.h"
 #include "rpi.h"
 #include "v3d.h"
-#include "nv.h"
 #include "simple-frag-shader.h"
 #include "mailbox-interface.h"
 #include "float-helpers.h"
 #include "graphics-settings.h"
+#include "nv.h"
 
 #define ONE_MB 1024 * 1024
 
@@ -82,6 +82,33 @@ typedef struct {
 
 binning_state_t cl_init_binning(cl_builder_t *cl, uint8_t width_tiles, uint8_t height_tiles,
                                 uint16_t width_px, uint16_t height_px);
+
+static inline nv_shader_state_cfg_t default_nv_shader_state_cfg(uint8_t vertex_data_stride, uint32_t frag_shader_code_addr, 
+                        uint32_t shaded_vertex_data_addr, uint16_t *vert_index_list, int num_vertices) {
+    return (nv_shader_state_cfg_t) {
+        .flag_bits = SHADER_CFG_FLAG_BITS_DEF,
+        .vertex_data_stride = vertex_data_stride,
+        .frag_shader_num_unifs = 0,
+        .frag_shader_num_varyings = MAX_VARYINGS,
+        .frag_shader_code_addr = frag_shader_code_addr,
+        .frag_shader_unif_addr = 0,
+        .shaded_vertex_data_addr = shaded_vertex_data_addr,
+    };
+}
+
+static inline indexed_primitive_list_cfg_t default_indexed_primitive_list_cfg(uint8_t primitive_mode, uint8_t index_type, 
+                        uint32_t num_vertices, uint32_t index_data_addr, uint32_t max_index) {
+    return (indexed_primitive_list_cfg_t) {
+        .primitive_mode = primitive_mode,
+        .index_type = index_type,
+        .num_vertices = num_vertices,
+        .index_data_addr = index_data_addr,
+        .max_index = max_index,
+    };
+}
+
+void cl_bin_primitives(cl_builder_t *cl, int vertex_data_stride, uint32_t frag_shader_code_addr, 
+                        uint32_t shaded_vertex_data_addr, uint16_t *vert_index_list, int num_vertices);
 
 void cl_bin_one_frame(cl_builder_t *cl);
 

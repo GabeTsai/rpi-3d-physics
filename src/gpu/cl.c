@@ -20,7 +20,8 @@ binning_state_t cl_init_binning(cl_builder_t *cl, uint8_t width_tiles, uint8_t h
     cl_emit_primitive_list_format(cl, TRIANGLES, U16BITINDEX);
 
     cl_emit_clip_window(cl, 0, 0, width_px, height_px);
-
+    // center of screen is (0, 0)
+    cl_emit_viewport_offset(cl, width_px / 2 * 16, height_px / 2 * 16);
     configuration_bits_t cfg = default_configuration_bits();
     cl_emit_configuration_bits(cl, cfg);
     
@@ -29,6 +30,20 @@ binning_state_t cl_init_binning(cl_builder_t *cl, uint8_t width_tiles, uint8_t h
         .tile_alloc_addr = tile_alloc_addr,
         .tile_state_data_addr = tile_state_data_addr,
     }; 
+}
+
+// bin primitives for up to 
+void cl_bin_primitives(cl_builder_t *cl, int vertex_data_stride, uint32_t frag_shader_code_addr, 
+                        uint32_t shaded_vertex_data_addr, uint16_t *vert_index_list, int num_vertices) {
+    nv_shader_state_cfg_t shader_cfg = default_nv_shader_state_cfg(vertex_data_stride, frag_shader_code_addr, 
+                        shaded_vertex_data_addr, vert_index_list, num_vertices);
+    cl_emit_nv_shader_state(cl, shader_cfg);
+
+    indexed_primitive_list_cfg_t primitive_list_cfg = default_indexed_primitive_list_cfg(TRIANGLES, U16BITINDEX, 
+                        num_vertices, CPU_TO_BUS(vert_index_list), num_vertices - 1);
+    cl_emit_indexed_primitive_list(cl, primitive_list_cfg);
+
+    cl_emit_single_control_id(cl, FLUSH_ALL_STATE);
 }
 
 void cl_bin_one_frame(cl_builder_t *cl) {
@@ -61,7 +76,6 @@ void cl_init_rendering(cl_builder_t *cl, uint32_t tile_alloc_addr, render_state_
             }
         }
     }
-
     clear_frame_count();
 }
 
