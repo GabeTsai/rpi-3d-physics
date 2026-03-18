@@ -1,6 +1,8 @@
 PROGS := physics.c
 COMMON_SRC := ../gpu/mailbox.c ../gpu/mailbox-interface.c
 CFLAGS += -I../gpu
+CFLAGS += -I../geom
+CFLAGS += -I../matrix
 CFLAGS += $(LIBM_INC)
 LIBS += $(LIBM)
 

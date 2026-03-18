@@ -1,6 +1,7 @@
 #include "physics.h"
-#include "vec_helpers.h"
-#include "quat_helpers.h"
+#include "vec3.h"
+#include "quat.h"
+#include "geom.h"
 
 static vec3 phys_safe_inv_vec3(vec3 v) {
     vec3 out = {.x = 0.0f, .y = 0.0f, .z = 0.0f};

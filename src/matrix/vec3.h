@@ -2,7 +2,11 @@
 
 #include "rpi.h"
 #include "rpi-math.h"
-#include "physics.h"
+
+typedef union {
+    struct { float x, y, z; };
+    struct { float r, g, b; };
+} vec3;
 
 static inline vec3 vec3_make(float x, float y, float z) {
     vec3 v = {.x = x, .y = y, .z = z};

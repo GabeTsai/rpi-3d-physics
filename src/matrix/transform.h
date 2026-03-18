@@ -1,7 +1,8 @@
 #pragma once
 
 #include "matrix.h"
-#include "physics.h"
+#include "vec3.h"
+#include "quat.h"
 
 /*
  * Internal cache so we don't rebuild T1/T2 every call when rotating

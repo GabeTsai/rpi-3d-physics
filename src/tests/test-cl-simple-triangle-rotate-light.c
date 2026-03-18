@@ -8,7 +8,7 @@
 #include "frag-shader-fixed-light.h"
 #include "float-helpers.h"
 #include "transform.h"
-#include "vec_helpers.h"
+#include "vec3.h"
 
 void notmain(void) { 
     kmalloc_init(10);

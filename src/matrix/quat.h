@@ -2,7 +2,10 @@
 
 #include "rpi.h"
 #include "rpi-math.h"
-#include "physics.h"
+
+typedef struct {
+    float w, x, y, z;
+} quat;
 
 static inline quat quat_make(float w, float x, float y, float z) {
     quat q = {w, x, y, z};
