@@ -10,6 +10,7 @@
 #include "float-helpers.h"
 #include "transform.h"
 #include "graphics-settings.h"
+#include "camera.h"
 
 /*
 Tile Binning Pass CL:
@@ -118,31 +119,42 @@ void notmain(void) {
     cl_emit_configuration_bits(&binning_cl, cfg);
     
     cl_emit_viewport_offset(&binning_cl, 0, 0); // center
+    cl_emit_clipper_xy_scaling(&binning_cl, viewport_hw_16th, viewport_hh_16th);
 
     uint32_t* frag_shader_code_addr = (uint32_t*) simple_frag_shader;
     uint32_t frag_shader_code_addr_gpu = CPU_TO_BUS(frag_shader_code_addr);
     output("frag_shader_code_addr: %x\n", frag_shader_code_addr);
     output("frag_shader_code_addr_gpu: %x\n", frag_shader_code_addr_gpu);
 
-    assert(sizeof(nv_vertex_nch_nps_t) == 24);
+    // assert(sizeof(nv_vertex_ch_nps_t) == 24);
 
-    uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
+    uint8_t vertex_data_stride = sizeof(nv_vertex_ch_nps_t);
     
-    nv_vertex_nch_nps_t *shaded_vertex_data_addr =
-        (nv_vertex_nch_nps_t *) kmalloc_aligned(vertex_data_stride * 3, 16);
+    nv_vertex_ch_nps_t *shaded_vertex_data_addr =
+        (nv_vertex_ch_nps_t *) kmalloc_aligned(vertex_data_stride * 3, 16);
     uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
     
+    camera cam;
+    camera_init(&cam, (vec3){32.0f, 32.0f, -80.0f}, (quat){1.0f, 0.0f, 0.0f, 0.0f}, 48.0f, 48.0f, 32.0f, 32.0f);
+
     float xs_1_f = 32.0f;
     float ys_1_f = 0.0f;
+    float zs_1_f = 32.0f;
     float xs_2_f = 32.0f;
     float ys_2_f = 60.0f;
+    float zs_2_f = 32.0f;
     float xs_3_f = 60.0f;
     float ys_3_f = 32.0f;
-    
+    float zs_3_f = 32.0f;
+
     int16_t xs_1 = float_to_fixed12_4(xs_1_f);
     int16_t ys_1 = float_to_fixed12_4(ys_1_f);
-    shaded_vertex_data_addr[0] = (nv_vertex_nch_nps_t) {
-        .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
+    shaded_vertex_data_addr[0] = (nv_vertex_ch_nps_t) {
+            .xc = 0,
+            .yc = 0,
+            .zc = 0,
+            .wc = 0,
+       .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
         .zs = 0.75f,
         .inv_wc = 1.0f,
         .varyings = { 1.0f, 0.0f, 0.0f }   // red
@@ -150,7 +162,11 @@ void notmain(void) {
     
     int16_t xs_2 = float_to_fixed12_4(xs_2_f);
     int16_t ys_2 = float_to_fixed12_4(ys_2_f);
-    shaded_vertex_data_addr[1] = (nv_vertex_nch_nps_t) {
+    shaded_vertex_data_addr[1] = (nv_vertex_ch_nps_t) {
+            .xc = 0,
+            .yc = 0,
+            .zc = 0,
+            .wc = 0,
         .xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
         .zs = 0.5f,
         .inv_wc = 1.0f,
@@ -159,14 +175,18 @@ void notmain(void) {
     
     int16_t xs_3 = float_to_fixed12_4(xs_3_f);
     int16_t ys_3 = float_to_fixed12_4(ys_3_f);
-    shaded_vertex_data_addr[2] = (nv_vertex_nch_nps_t) {
+    shaded_vertex_data_addr[2] = (nv_vertex_ch_nps_t) {
+            .xc = 0,
+            .yc = 0,
+            .zc = 0,
+            .wc = 0,
         .xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
         .zs = 0.5f,
         .inv_wc = 1.0f,
         .varyings = { 0.0f, 0.0f, 1.0f }   // blue
     };
     
-    uint8_t flag_bits = 0x01;   // no clip header, no point size
+    uint8_t flag_bits = 0b1001;   // no clip header, no point size
     
     nv_shader_state_cfg_t shader_cfg = {
         .flag_bits = flag_bits,
@@ -250,43 +270,66 @@ void notmain(void) {
 
     float theta = 0.0f;
     float zlevel = 0.5f;
-    vec3 res;
+    float p1x, p1y, p2x, p2y, p3x, p3y;
     while (1) {
+        // printk("hi!!!!\n");
         // Update only the vertex buffer contents.
-        res = rotate_xyz_around_point((vec3){xs_1_f, ys_1_f, zlevel},
-                                        32.0f, 32.0f, 0.5f,
-                                        0.75f*theta, theta, 1.5f*theta);
+        vec3 res = rotate_xyz_around_point((vec3){xs_1_f, ys_1_f, zs_1_f},
+                                        32.0f, 32.0f, 32.0f,
+                                        0.0f, theta, 0.0f);
+        // printk("11111111111111111111111111111111\n");
+        camera_project_point(&cam, res, &p1x, &p1y);
+        // printk("%f, %f\n", p1x, p1y);
 
 
-        int16_t xs_1 = float_to_fixed12_4(res.x);
-        int16_t ys_1 = float_to_fixed12_4(res.y);
-        shaded_vertex_data_addr[0] = (nv_vertex_nch_nps_t) {
+        int16_t xs_1 = float_to_fixed12_4(p1x);
+        int16_t ys_1 = float_to_fixed12_4(p1y);
+        // printk("yurr\n");
+        shaded_vertex_data_addr[0] = (nv_vertex_ch_nps_t) {
+            .xc = 0,
+            .yc = 0,
+            .zc = 0,
+            .wc = 0,
             .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
             .zs = zlevel,   // screen-space rotation: depth is constant
             .inv_wc = 1.0f,
             .varyings = { 1.0f, 0.0f, 0.0f }   // red
         };
+        // printk("yurr\n");
 
-        res = rotate_xyz_around_point((vec3){xs_2_f, ys_2_f, zlevel},
-                                32.0f, 32.0f, 0.5f,
-                                0.75f*theta, theta, 1.5f*theta);
-        
-        int16_t xs_2 = float_to_fixed12_4(res.x);
-        int16_t ys_2 = float_to_fixed12_4(res.y);
-        shaded_vertex_data_addr[1] = (nv_vertex_nch_nps_t) {
+        // printk("222222222222222222222222222222222222222222\n");
+
+
+        res = rotate_xyz_around_point((vec3){xs_2_f, ys_2_f, zs_2_f},
+                                32.0f, 32.0f, 32.0f,
+                                0.0f, theta, 0.0f);
+        camera_project_point(&cam, res, &p2x, &p2y);
+
+        int16_t xs_2 = float_to_fixed12_4(p2x);
+        int16_t ys_2 = float_to_fixed12_4(p2y);
+        shaded_vertex_data_addr[1] = (nv_vertex_ch_nps_t) {
+            .xc = 0,
+            .yc = 0,
+            .zc = 0,
+            .wc = 0,
             .xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
             .zs = zlevel,
             .inv_wc = 1.0f,
             .varyings = { 0.0f, 1.0f, 0.0f }   // green
         };
 
-        res = rotate_xyz_around_point((vec3){xs_3_f, ys_3_f, zlevel},
-                        32.0f, 32.0f, 0.5f,
-                        0.75f*theta, theta, 1.5f*theta);
-        
-        int16_t xs_3 = float_to_fixed12_4(res.x);
-        int16_t ys_3 = float_to_fixed12_4(res.y);
-        shaded_vertex_data_addr[2] = (nv_vertex_nch_nps_t) {
+        res = rotate_xyz_around_point((vec3){xs_3_f, ys_3_f, zs_3_f},
+                                32.0f, 32.0f, 32.0f,
+                                0.0f, theta, 0.0f);
+        camera_project_point(&cam, res, &p3x, &p3y);
+
+        int16_t xs_3 = float_to_fixed12_4(p3x);
+        int16_t ys_3 = float_to_fixed12_4(p3y);
+        shaded_vertex_data_addr[2] = (nv_vertex_ch_nps_t) {
+            .xc = 0,
+            .yc = 0,
+            .zc = 0,
+            .wc = 0,
             .xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
             .zs = zlevel,
             .inv_wc = 1.0f,
@@ -331,10 +374,10 @@ void notmain(void) {
         // output("ERRSTAT=%b\n", bits_get(GET32(V3D_ERRSTAT), 0, 15));
         // output("DBGE=%b\n\n", bits_get(GET32(V3D_DBGE), 0, 20));
 
-        theta += 0.01f;
+        theta += 0.0f;
         // if (theta > 20.0f)
         //     theta = -20.0f;
-
+        camera_rotate(&cam, quat_from_euler(0.0f, 0.0f, 0.1f));
         delay_ms(10);
     }
 }
