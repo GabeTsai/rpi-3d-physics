@@ -28,7 +28,7 @@ static inline void camera_init(camera *c, vec3 position, quat rotation, float fx
 }
 
 static inline vec3 camera_world_to_camera(const camera *cam, vec3 p_world) {
-    vec3 rel = vsub(p_world, cam->position);
+    vec3 rel = vec3_sub(p_world, cam->position);
     quat inv = quat_conjugate(cam->rotation);
     return quat_rotate_vec3(inv, rel);
 }
@@ -37,7 +37,7 @@ int camera_project_point(const camera *cam,
                          vec3 world_point,
                          float *px, float *py)
 {
-    vec3 rel = vsub(world_point, cam->position);
+    vec3 rel = vec3_sub(world_point, cam->position);
     vec3 p_cam = quat_rotate_vec3(quat_conjugate(cam->rotation), rel);
 
     if(p_cam.z <= 0.0f)
@@ -66,7 +66,7 @@ static inline int camera_project_clip(const camera *cam,
                                       float zfar,
                                       camera_clip_proj *out)
 {
-    vec3 rel = vsub(world_point, cam->position);
+    vec3 rel = vec3_sub(world_point, cam->position);
     vec3 p_cam = quat_rotate_vec3(quat_conjugate(cam->rotation), rel);
 
     float x = p_cam.x;
@@ -96,7 +96,7 @@ static inline int camera_project_clip(const camera *cam,
 }
 
 static inline void camera_translate(camera *c, vec3 delta) {
-    c->position = vadd(c->position, delta);
+    c->position = vec3_add(c->position, delta);
 }
 
 static inline void camera_rotate(camera *c, quat q) {
