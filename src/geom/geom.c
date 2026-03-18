@@ -8,31 +8,29 @@ static triangle *mesh_alloc_triangles(int triangle_count) {
     return (triangle *)kmalloc(sizeof(triangle) * triangle_count);
 }
 
-static mesh_geom mesh_geom_make(int triangle_count, triangle *triangles, vec3 position, quat orientation) {
+static mesh_geom mesh_geom_make(int triangle_count, triangle *triangles) {
     mesh_geom g;
     g.id = g_next_mesh_geom_id++;
     g.triangle_count = triangle_count;
     g.triangles = triangles;
-    g.position = position;
-    g.orientation = orientation;
+    // g.position = position;
+    // g.orientation = orientation;
     return g;
 }
 
-mesh_geom mesh_geom_init_custom_take(int triangle_count, triangle *triangles, vec3 position, quat orientation) {
-    return mesh_geom_make(triangle_count, triangles, position, orientation);
+mesh_geom mesh_geom_init_custom_take(int triangle_count, triangle *triangles) {
+    return mesh_geom_make(triangle_count, triangles);
 }
 
-mesh_geom mesh_geom_init_custom_copy(int triangle_count, const triangle *triangles, vec3 position, quat orientation) {
+mesh_geom mesh_geom_init_custom_copy(int triangle_count, const triangle *triangles) {
     triangle *dst = mesh_alloc_triangles(triangle_count);
     for (int i = 0; i < triangle_count; i++)
         dst[i] = triangles[i];
 
-    return mesh_geom_make(triangle_count, dst, position, orientation);
+    return mesh_geom_make(triangle_count, dst);
 }
 
-mesh_geom mesh_geom_init_box(float hx, float hy, float hz,
-                             vec3 position,
-                             quat orientation) {
+mesh_geom mesh_geom_init_box(float hx, float hy, float hz) {
     triangle *tris = mesh_alloc_triangles(12);
 
     vec3 p000 = vec3_make(-hx, -hy, -hz);
@@ -62,12 +60,10 @@ mesh_geom mesh_geom_init_box(float hx, float hy, float hz,
     tris[10] = (triangle){ p001, p101, p111 };
     tris[11] = (triangle){ p001, p111, p011 };
 
-    return mesh_geom_make(12, tris, position, orientation);
+    return mesh_geom_make(12, tris);
 }
 
-mesh_geom mesh_geom_init_plane(float hx, float hz,
-                               vec3 position,
-                               quat orientation) {
+mesh_geom mesh_geom_init_plane(float hx, float hz) {
     triangle *tris = mesh_alloc_triangles(2);
 
     vec3 p0 = vec3_make(-hx, 0.0f, -hz);
@@ -78,10 +74,10 @@ mesh_geom mesh_geom_init_plane(float hx, float hz,
     tris[0] = (triangle){ p0, p1, p2 };
     tris[1] = (triangle){ p0, p2, p3 };
 
-    return mesh_geom_make(2, tris, position, orientation);
+    return mesh_geom_make(2, tris);
 }
 
-mesh_geom mesh_geom_init_tetrahedron(float radius, vec3 position, quat orientation) {
+mesh_geom mesh_geom_init_tetrahedron(float radius) {
     triangle *tris = mesh_alloc_triangles(4);
 
     vec3 v0 = vec3_scale(vec3_normalize(vec3_make( 1.0f,  1.0f,  1.0f)), radius);
@@ -94,10 +90,10 @@ mesh_geom mesh_geom_init_tetrahedron(float radius, vec3 position, quat orientati
     tris[2] = (triangle){ v0, v2, v3 };
     tris[3] = (triangle){ v1, v3, v2 };
 
-    return mesh_geom_make(4, tris, position, orientation);
+    return mesh_geom_make(4, tris);
 }
 
-mesh_geom mesh_geom_init_icosahedron(float radius, vec3 position, quat orientation) {
+mesh_geom mesh_geom_init_icosahedron(float radius) {
     const float phi = (1.0f + sqrtf(5.0f)) * 0.5f;
 
     vec3 verts[12] = {
@@ -134,7 +130,7 @@ mesh_geom mesh_geom_init_icosahedron(float radius, vec3 position, quat orientati
         };
     }
 
-    return mesh_geom_make(20, tris, position, orientation);
+    return mesh_geom_make(20, tris);
 }
 
 static inline vec3 mesh_midpoint_on_sphere(vec3 a, vec3 b, float radius) {
@@ -142,11 +138,11 @@ static inline vec3 mesh_midpoint_on_sphere(vec3 a, vec3 b, float radius) {
     return vec3_scale(vec3_normalize(mid), radius);
 }
 
-mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions, vec3 position, quat orientation) {
+mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions) {
     if (subdivisions < 0)
         subdivisions = 0;
 
-    mesh_geom base = mesh_geom_init_icosahedron(radius, vec3_zero(), quat_identity());
+    mesh_geom base = mesh_geom_init_icosahedron(radius);
     triangle *curr = base.triangles;
     int curr_count = base.triangle_count;
 
@@ -173,5 +169,5 @@ mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions, vec3 position
         curr_count = next_count;
     }
 
-    return mesh_geom_make(curr_count, curr, position, orientation);
+    return mesh_geom_make(curr_count, curr);
 }

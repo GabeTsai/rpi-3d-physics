@@ -43,6 +43,28 @@ static inline vec3 vec3_scale(vec3 a, float s) {
     return r;
 }
 
+static inline vec3 vec3_neg(vec3 a) {
+    return vec3_scale(a, -1.0f);
+}
+
+static inline vec3 vec3_min(vec3 a, vec3 b) {
+    vec3 r = {
+        .x = (a.x < b.x) ? a.x : b.x,
+        .y = (a.y < b.y) ? a.y : b.y,
+        .z = (a.z < b.z) ? a.z : b.z
+    };
+    return r;
+}
+
+static inline vec3 vec3_max(vec3 a, vec3 b) {
+    vec3 r = {
+        .x = (a.x > b.x) ? a.x : b.x,
+        .y = (a.y > b.y) ? a.y : b.y,
+        .z = (a.z > b.z) ? a.z : b.z
+    };
+    return r;
+}
+
 static inline vec3 vec3_hadamard(vec3 a, vec3 b) {
     vec3 r = {.x = a.x * b.x, .y = a.y * b.y, .z = a.z * b.z};
     return r;
