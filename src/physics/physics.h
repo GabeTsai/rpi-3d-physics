@@ -3,24 +3,9 @@
 #include "rpi.h"
 #include "rpi-math.h"
 #include <string.h>
-
-typedef union {
-    struct { float x, y, z; };
-    struct { float r, g, b; };
-} vec3;
-
-typedef struct {
-    vec3 v0, v1, v2;
-} triangle;
-
-typedef struct {
-    triangle *triangles;
-    int triangle_count;
-} mesh_geom;
-
-typedef struct {
-    float w, x, y, z;
-} quat;
+#include "vec3.h"
+#include "quat.h"
+#include "geom.h"
 
 typedef struct {
     enum {
