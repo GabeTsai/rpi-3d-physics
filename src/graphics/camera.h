@@ -2,8 +2,8 @@
 
 // #include "../physics/physics.h"
 #include "physics.h"
-#include "vec_helpers.h"
-#include "quat_helpers.h"
+#include "vec3.h"
+#include "quat.h"
 #include "rpi.h"
 typedef struct {
     vec3 position;
