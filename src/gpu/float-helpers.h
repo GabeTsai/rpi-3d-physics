@@ -18,7 +18,7 @@ static inline float fixed12_4_to_float(int16_t x) {
 
 // NV pipeline stores x_s in 16 LSBs, y_s in 16 MSBs
 static inline uint32_t pack_xs_ys_fixed12_4(int16_t xs, int16_t ys) { 
-    return (uint32_t)(ys << 16 | xs);
+    return ((uint32_t)(uint16_t)ys << 16) | (uint32_t)(uint16_t)xs;
 }
 
 static inline void unpack_xs_ys_fixed12_4(uint32_t packed, int16_t *xs, int16_t *ys) { 
