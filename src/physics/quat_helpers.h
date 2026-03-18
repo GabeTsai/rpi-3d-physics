@@ -81,3 +81,11 @@ static inline quat quat_from_angular_velocity(vec3 w) {
     quat q = {0.0f, w.x, w.y, w.z};
     return q;
 }
+
+static inline quat quat_from_euler(float pitch, float roll, float yaw) {
+    quat qx = quat_from_axis_angle(vec3_make(1.0f, 0.0f, 0.0f), pitch);
+    quat qy = quat_from_axis_angle(vec3_make(0.0f, 1.0f, 0.0f), roll);
+    quat qz = quat_from_axis_angle(vec3_make(0.0f, 0.0f, 1.0f), yaw);
+    
+    return quat_normalize(quat_mul(qz, quat_mul(qy, qx)));
+}

@@ -126,16 +126,16 @@ void notmain(void) {
     output("frag_shader_code_addr: %x\n", frag_shader_code_addr);
     output("frag_shader_code_addr_gpu: %x\n", frag_shader_code_addr_gpu);
 
-    // assert(sizeof(nv_vertex_ch_nps_t) == 24);
+    assert(sizeof(nv_vertex_nch_nps_t) == 24);
 
-    uint8_t vertex_data_stride = sizeof(nv_vertex_ch_nps_t);
+    uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
     
-    nv_vertex_ch_nps_t *shaded_vertex_data_addr =
-        (nv_vertex_ch_nps_t *) kmalloc_aligned(vertex_data_stride * 3, 16);
+    nv_vertex_nch_nps_t *shaded_vertex_data_addr =
+        (nv_vertex_nch_nps_t *) kmalloc_aligned(vertex_data_stride * 3, 16);
     uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
     
     camera cam;
-    camera_init(&cam, (vec3){32.0f, 32.0f, -80.0f}, (quat){1.0f, 0.0f, 0.0f, 0.0f}, 48.0f, 48.0f, 32.0f, 32.0f);
+    camera_init(&cam, vec3_make(32.0f, 32.0f, -80.0f), (quat){1.0f, 0.0f, 0.0f, 0.0f}, 48.0f, 48.0f, 32.0f, 32.0f);
 
     float xs_1_f = 32.0f;
     float ys_1_f = 0.0f;
@@ -149,37 +149,25 @@ void notmain(void) {
 
     int16_t xs_1 = float_to_fixed12_4(xs_1_f);
     int16_t ys_1 = float_to_fixed12_4(ys_1_f);
-    shaded_vertex_data_addr[0] = (nv_vertex_ch_nps_t) {
-            .xc = 0,
-            .yc = 0,
-            .zc = 0,
-            .wc = 0,
+    shaded_vertex_data_addr[0] = (nv_vertex_nch_nps_t) {
        .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
         .zs = 0.75f,
         .inv_wc = 1.0f,
-        .varyings = { 1.0f, 0.0f, 0.0f }   // red
+        // .varyings = { 1.0f, 0.0f, 0.0f }   // red
     };
     
     int16_t xs_2 = float_to_fixed12_4(xs_2_f);
     int16_t ys_2 = float_to_fixed12_4(ys_2_f);
-    shaded_vertex_data_addr[1] = (nv_vertex_ch_nps_t) {
-            .xc = 0,
-            .yc = 0,
-            .zc = 0,
-            .wc = 0,
+    shaded_vertex_data_addr[1] = (nv_vertex_nch_nps_t) {
         .xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
         .zs = 0.5f,
         .inv_wc = 1.0f,
-        .varyings = { 0.0f, 1.0f, 0.0f }   // green
+        // .varyings = { 0.0f, 1.0f, 0.0f }   // green
     };
     
     int16_t xs_3 = float_to_fixed12_4(xs_3_f);
     int16_t ys_3 = float_to_fixed12_4(ys_3_f);
-    shaded_vertex_data_addr[2] = (nv_vertex_ch_nps_t) {
-            .xc = 0,
-            .yc = 0,
-            .zc = 0,
-            .wc = 0,
+    shaded_vertex_data_addr[2] = (nv_vertex_nch_nps_t) {
         .xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
         .zs = 0.5f,
         .inv_wc = 1.0f,
@@ -274,7 +262,7 @@ void notmain(void) {
     while (1) {
         // printk("hi!!!!\n");
         // Update only the vertex buffer contents.
-        vec3 res = rotate_xyz_around_point((vec3){xs_1_f, ys_1_f, zs_1_f},
+        vec3 res = rotate_xyz_around_point(vec3_make(xs_1_f, ys_1_f, zs_1_f),
                                         32.0f, 32.0f, 32.0f,
                                         0.0f, theta, 0.0f);
         // printk("11111111111111111111111111111111\n");
@@ -285,11 +273,7 @@ void notmain(void) {
         int16_t xs_1 = float_to_fixed12_4(p1x);
         int16_t ys_1 = float_to_fixed12_4(p1y);
         // printk("yurr\n");
-        shaded_vertex_data_addr[0] = (nv_vertex_ch_nps_t) {
-            .xc = 0,
-            .yc = 0,
-            .zc = 0,
-            .wc = 0,
+        shaded_vertex_data_addr[0] = (nv_vertex_nch_nps_t) {
             .xs_ys = pack_xs_ys_fixed12_4(xs_1, ys_1),
             .zs = zlevel,   // screen-space rotation: depth is constant
             .inv_wc = 1.0f,
@@ -300,36 +284,28 @@ void notmain(void) {
         // printk("222222222222222222222222222222222222222222\n");
 
 
-        res = rotate_xyz_around_point((vec3){xs_2_f, ys_2_f, zs_2_f},
+        res = rotate_xyz_around_point(vec3_make(xs_2_f, ys_2_f, zs_2_f),
                                 32.0f, 32.0f, 32.0f,
                                 0.0f, theta, 0.0f);
         camera_project_point(&cam, res, &p2x, &p2y);
 
         int16_t xs_2 = float_to_fixed12_4(p2x);
         int16_t ys_2 = float_to_fixed12_4(p2y);
-        shaded_vertex_data_addr[1] = (nv_vertex_ch_nps_t) {
-            .xc = 0,
-            .yc = 0,
-            .zc = 0,
-            .wc = 0,
+        shaded_vertex_data_addr[1] = (nv_vertex_nch_nps_t) {
             .xs_ys = pack_xs_ys_fixed12_4(xs_2, ys_2),
             .zs = zlevel,
             .inv_wc = 1.0f,
             .varyings = { 0.0f, 1.0f, 0.0f }   // green
         };
 
-        res = rotate_xyz_around_point((vec3){xs_3_f, ys_3_f, zs_3_f},
+        res = rotate_xyz_around_point(vec3_make(xs_3_f, ys_3_f, zs_3_f),
                                 32.0f, 32.0f, 32.0f,
                                 0.0f, theta, 0.0f);
         camera_project_point(&cam, res, &p3x, &p3y);
 
         int16_t xs_3 = float_to_fixed12_4(p3x);
         int16_t ys_3 = float_to_fixed12_4(p3y);
-        shaded_vertex_data_addr[2] = (nv_vertex_ch_nps_t) {
-            .xc = 0,
-            .yc = 0,
-            .zc = 0,
-            .wc = 0,
+        shaded_vertex_data_addr[2] = (nv_vertex_nch_nps_t) {
             .xs_ys = pack_xs_ys_fixed12_4(xs_3, ys_3),
             .zs = zlevel,
             .inv_wc = 1.0f,
