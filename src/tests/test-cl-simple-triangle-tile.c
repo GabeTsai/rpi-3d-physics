@@ -11,28 +11,6 @@
 #include "float-helpers.h"
 #include "physics.h"
 #include "graphics-settings.h"
-/*
-Tile Binning Pass CL:
-    Tile Binning Mode Config
-    Clip Window
-    Viewport Offset
-    Clipper XY Scaling
-    Configuration Bits
-    Start Tile Binning
-    NV Shader State
-    Vertex Array Primitives (triangle)
-    Flush All State
-    Halt
-
-Tile Rendering CL: 
-    Clear Colors
-    Tile Rendering Mode Config
-
-    Tile Coordinates (0,0)
-    Store Tile Buffer and EOF
-
-    Halt
-*/
 
 void notmain(void) { 
     kmalloc_init(10);
