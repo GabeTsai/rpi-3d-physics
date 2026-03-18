@@ -17,4 +17,6 @@ typedef enum {
 #include <stdbool.h>
 #include "rpi.h"
 
+#define AMBIENT_INTENSITY_DEF 0.3f
+
 #endif

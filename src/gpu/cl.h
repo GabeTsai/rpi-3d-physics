@@ -58,6 +58,28 @@ static inline configuration_bits_t default_configuration_bits(void) {
     };
 }
 
+// back-face culling enabled — use for 3D meshes with consistently outward-wound triangles
+// back-face culling tells the GPU to discard triangles that wind clockwise on the screen 
+// in other words, the normal vector of the face points in the same direction as the camera's view vector
+static inline configuration_bits_t default_configuration_bits_3d(void) {
+    return (configuration_bits_t) {
+        .enable_forward_facing_prim = true,
+        .enable_rev_facing_prim = false, 
+        .clockwise_prim = false,
+        .depth_offset = false,
+        .anti_alias_points_lines = false,
+        .covg_read_type = false,
+        .rast_oversample_mode = 0,
+        .covg_pipe_select = false,
+        .covg_update_mode = 0,
+        .covg_read_mode = false,
+        .depth_test_func = DEPTH_TEST_LT,
+        .z_updates = true,
+        .early_z = false,
+        .early_z_updates = false,
+    };
+}
+
 static inline tile_render_cfg_t default_tile_render_cfg(uint32_t fb_base_addr, uint16_t width_px, uint16_t height_px) {
     return (tile_render_cfg_t) {
         .addr = fb_base_addr,
@@ -81,7 +103,7 @@ typedef struct {
 } render_state_t;
 
 binning_state_t cl_init_binning(cl_builder_t *cl, uint8_t width_tiles, uint8_t height_tiles,
-                                uint16_t width_px, uint16_t height_px);
+                                uint16_t width_px, uint16_t height_px, int back_face_culling);
 
 static inline nv_shader_state_cfg_t default_nv_shader_state_cfg(uint8_t vertex_data_stride, uint32_t frag_shader_code_addr, 
                         uint32_t shaded_vertex_data_addr, uint16_t *vert_index_list, int num_vertices) {

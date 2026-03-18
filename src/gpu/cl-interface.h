@@ -131,10 +131,12 @@ typedef struct __attribute__((packed, aligned(16))) {
 nv_shader_state_cfg_t* cl_emit_nv_shader_state(cl_builder_t *cl, nv_shader_state_cfg_t cfg);
 
 // page 70 
-void cl_emit_clip_window(cl_builder_t *cl, uint16_t clip_window_l, uint16_t clip_window_b, uint16_t clip_window_w, uint16_t clip_window_h);
 // xy coords after perspective division are normalized to [-1, 1]
 // we convert to screen coords by using the specified viewport offset (+) and clipper xy scaling (*)
 // used only if clip header enabled
+void cl_emit_clip_window(cl_builder_t *cl, uint16_t clip_window_l, uint16_t clip_window_b, uint16_t clip_window_w, uint16_t clip_window_h);
+
+// this was never mentioned in the datasheet but these should also be in 1/16 pixels
 void cl_emit_viewport_offset(cl_builder_t *cl, int16_t x_center, int16_t y_center);
 // height and width are in 1/16 pixels - page 70
 void cl_emit_clipper_xy_scaling(cl_builder_t *cl, float viewport_half_width, float viewport_half_height);

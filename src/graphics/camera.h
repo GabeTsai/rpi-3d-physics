@@ -33,9 +33,9 @@ static inline vec3 camera_world_to_camera(const camera *cam, vec3 p_world) {
     return quat_rotate_vec3(inv, rel);
 }
 
-int camera_project_point(const camera *cam,
-                         vec3 world_point,
-                         float *px, float *py)
+static inline int camera_project_point(const camera *cam,
+                                       vec3 world_point,
+                                       float *px, float *py)
 {
     vec3 rel = vec3_sub(world_point, cam->position);
     vec3 p_cam = quat_rotate_vec3(quat_conjugate(cam->rotation), rel);

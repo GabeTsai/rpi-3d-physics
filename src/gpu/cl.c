@@ -2,7 +2,7 @@
 #include "cl-interface.h"
 
 binning_state_t cl_init_binning(cl_builder_t *cl, uint8_t width_tiles, uint8_t height_tiles,
-                                uint16_t width_px, uint16_t height_px) {
+                                uint16_t width_px, uint16_t height_px, int back_face_culling) {
     uint8_t *cl_buf = (uint8_t *) kmalloc(CL_BUF_SIZE_DEF);
     cl_init(cl, cl_buf, CPU_TO_BUS(cl_buf), CL_BUF_SIZE_DEF);
 
@@ -22,7 +22,12 @@ binning_state_t cl_init_binning(cl_builder_t *cl, uint8_t width_tiles, uint8_t h
     cl_emit_clip_window(cl, 0, 0, width_px, height_px);
     // center of screen is (0, 0)
     cl_emit_viewport_offset(cl, width_px / 2 * 16, height_px / 2 * 16);
-    configuration_bits_t cfg = default_configuration_bits();
+    configuration_bits_t cfg;
+    if (back_face_culling) {
+        cfg = default_configuration_bits_3d();
+    } else {
+        cfg = default_configuration_bits();
+    }
     cl_emit_configuration_bits(cl, cfg);
     
     clear_flush_count();
