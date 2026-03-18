@@ -5,34 +5,33 @@
 #include "rpi.h"
 #include "rpi-math.h"
 
+#define MAX_ENTRIES 16
+
 typedef struct {
     int rows, cols;
-    float *entries;
+    float entries[MAX_ENTRIES];
 } matrix;
 
 static inline matrix matrix_init(int rows, int cols) {
-    matrix m;
+    assert(rows >= 0 && cols >= 0);
+    assert((size_t)rows * (size_t)cols <= MAX_ENTRIES);
 
+    matrix m = {0};
     m.rows = rows;
     m.cols = cols;
-
-    size_t nbytes = (size_t)rows * (size_t)cols * sizeof(float);
-    m.entries = kmalloc(nbytes);
-
-    memset(m.entries, 0, nbytes);
     return m;
 }
 
-static inline void matrix_free(matrix *m) {
-    // free(m->entries);
-    // m->entries = NULL;
-    // m->rows = m->cols = 0;
+// static inline void matrix_free(matrix *m) {
+//     // free(m->entries);
+//     // m->entries = NULL;
+//     // m->rows = m->cols = 0;
 
-    // No free() allowed :((
-    m->entries = NULL;
-    m->rows = 0;
-    m->cols = 0;
-}
+//     // No free() allowed :((
+//     m->entries = NULL;
+//     m->rows = 0;
+//     m->cols = 0;
+// }
 
 static inline int matrix_same_shape(const matrix *a, const matrix *b) {
     return a && b && a->rows == b->rows && a->cols == b->cols;
@@ -72,30 +71,30 @@ static inline matrix matrix_homogeneous_init(
 ) {
     matrix m = matrix_init(4, 4);
 
-    float cp = cosf(pitch);
-    float sp = sinf(pitch);
+    float cx = cosf(pitch);
+    float sx = sinf(pitch);
 
-    float cr = cosf(roll);
-    float sr = sinf(roll);
+    float cy = cosf(roll);
+    float sy = sinf(roll);
 
-    float cy = cosf(yaw);
-    float sy = sinf(yaw);
+    float cz = cosf(yaw);
+    float sz = sinf(yaw);
 
     float *e = m.entries;
 
-    e[0] = cy*cp;
-    e[1] = cy*sp*sr - sy*cr;
-    e[2] = cy*sp*cr + sy*sr;
+    e[0] = cz * cy;
+    e[1] = cz * sy * sx - sz * cx;
+    e[2] = cz * sy * cx + sz * sx;
     e[3] = tx;
 
-    e[4] = sy*cp;
-    e[5] = sy*sp*sr + cy*cr;
-    e[6] = sy*sp*cr - cy*sr;
+    e[4] = sz * cy;
+    e[5] = sz * sy * sx + cz * cx;
+    e[6] = sz * sy * cx - cz * sx;
     e[7] = ty;
 
-    e[8]  = -sp;
-    e[9]  = cp*sr;
-    e[10] = cp*cr;
+    e[8]  = -sy;
+    e[9]  = cy * sx;
+    e[10] = cy * cx;
     e[11] = tz;
 
     e[12] = 0.0f;
