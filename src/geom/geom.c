@@ -20,7 +20,7 @@ static triangle *mesh_alloc_triangles(int triangle_count) {
 static mesh_geom mesh_geom_make(
         int triangle_count, 
         triangle *triangles, 
-        float r, float g, float b) {
+        float r, float g, float b, int visible) {
     mesh_geom mesh;
     mesh.id = g_next_mesh_geom_id++;
     mesh.triangle_count = triangle_count;
@@ -29,6 +29,7 @@ static mesh_geom mesh_geom_make(
     mesh.r = r;
     mesh.g = g;
     mesh.b = b;
+    mesh.visible = visible;
     return mesh;
 }
 
@@ -59,26 +60,26 @@ void mesh_geom_compute_smooth_normals(mesh_geom *mesh) {
     mesh->smooth_normals = true;
 }
 
-mesh_geom mesh_geom_init_custom_take(int triangle_count, triangle *triangles, float r, float g, float b) {
-    return mesh_geom_make(triangle_count, triangles, r, g, b);
+mesh_geom mesh_geom_init_custom_take(int triangle_count, triangle *triangles, float r, float g, float b, int visible) {
+    return mesh_geom_make(triangle_count, triangles, r, g, b, visible);
 }
 
-mesh_geom mesh_geom_init_custom_copy(int triangle_count, const triangle *triangles, float r, float g, float b) {
+mesh_geom mesh_geom_init_custom_copy(int triangle_count, const triangle *triangles, float r, float g, float b, int visible) {
     triangle *dst = mesh_alloc_triangles(triangle_count);
     for (int i = 0; i < triangle_count; i++)
         dst[i] = triangles[i];
 
-    return mesh_geom_make(triangle_count, dst, r, g, b);
+    return mesh_geom_make(triangle_count, dst, r, g, b, visible);
 }
 
-mesh_geom mesh_geom_init_triangle(triangle tri, float r, float g, float b) {
+mesh_geom mesh_geom_init_triangle(triangle tri, float r, float g, float b, int visible) {
     triangle *tris = mesh_alloc_triangles(1);
     tris[0] = tri;
-    return mesh_geom_make(1, tris, r, g, b);
+    return mesh_geom_make(1, tris, r, g, b, visible);
 }
 
 mesh_geom mesh_geom_init_box(float hx, float hy, float hz,
-                             float r, float g, float b) {
+                             float r, float g, float b, int visible) {
     triangle *tris = mesh_alloc_triangles(12);
 
     vec3 p000 = vec3_make(-hx, -hy, -hz);
@@ -108,11 +109,17 @@ mesh_geom mesh_geom_init_box(float hx, float hy, float hz,
     tris[10] = (triangle){ p001, p101, p111 };
     tris[11] = (triangle){ p001, p111, p011 };
 
-    return mesh_geom_make(12, tris, r, g, b);
+    mesh_geom mesh = mesh_geom_make(12, tris, r, g, b, visible);
+    mesh.type = SHAPE_BOX;
+    mesh.hx = hx;
+    mesh.hy = hy;
+    mesh.hz = hz;
+
+    return mesh;
 }
 
 mesh_geom mesh_geom_init_plane(float hx, float hz,
-                               float r, float g, float b) {
+                               float r, float g, float b, int visible) {
     triangle *tris = mesh_alloc_triangles(2);
 
     vec3 p0 = vec3_make(-hx, 0.0f, -hz);
@@ -123,10 +130,10 @@ mesh_geom mesh_geom_init_plane(float hx, float hz,
     tris[0] = (triangle){ p0, p1, p2 };
     tris[1] = (triangle){ p0, p2, p3 };
 
-    return mesh_geom_make(2, tris, r, g, b);
+    return mesh_geom_make(2, tris, r, g, b, visible);
 }
 
-mesh_geom mesh_geom_init_tetrahedron(float radius, float r, float g, float b) {
+mesh_geom mesh_geom_init_tetrahedron(float radius, float r, float g, float b, int visible) {
     triangle *tris = mesh_alloc_triangles(4);
 
     vec3 v0 = vec3_scale(vec3_normalize(vec3_make( 1.0f,  1.0f,  1.0f)), radius);
@@ -139,10 +146,10 @@ mesh_geom mesh_geom_init_tetrahedron(float radius, float r, float g, float b) {
     tris[2] = (triangle){ v0, v2, v3 };
     tris[3] = (triangle){ v1, v3, v2 };
 
-    return mesh_geom_make(4, tris, r, g, b);
+    return mesh_geom_make(4, tris, r, g, b, visible);
 }
 
-mesh_geom mesh_geom_init_icosahedron(float radius, float r, float g, float b) {
+mesh_geom mesh_geom_init_icosahedron(float radius, float r, float g, float b, int visible) {
     const float phi = (1.0f + sqrtf(5.0f)) * 0.5f;
 
     vec3 verts[12] = {
@@ -179,7 +186,7 @@ mesh_geom mesh_geom_init_icosahedron(float radius, float r, float g, float b) {
         };
     }
 
-    mesh_geom mesh = mesh_geom_make(20, tris, r, g, b);
+    mesh_geom mesh = mesh_geom_make(20, tris, r, g, b, visible);
 #if GOURAUD_SHADING
     mesh_geom_compute_smooth_normals(&mesh);
 #endif
@@ -192,11 +199,11 @@ static inline vec3 mesh_midpoint_on_sphere(vec3 a, vec3 b, float radius) {
 }
 
 mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions, 
-                                float r, float g, float b) {
+                                float r, float g, float b, int visible) {
     if (subdivisions < 0)
         subdivisions = 0;
 
-    mesh_geom base = mesh_geom_init_icosahedron(radius, r, g, b);
+    mesh_geom base = mesh_geom_init_icosahedron(radius, r, g, b, visible);
     triangle *curr = base.triangles;
     int curr_count = base.triangle_count;
 
@@ -223,7 +230,9 @@ mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions,
         curr_count = next_count;
     }
 
-    mesh_geom mesh = mesh_geom_make(curr_count, curr, r, g, b);
+    mesh_geom mesh = mesh_geom_make(curr_count, curr, r, g, b, visible);
+    mesh.type = SHAPE_SPHERE;
+    mesh.radius = radius;
 #if GOURAUD_SHADING
     mesh_geom_compute_smooth_normals(&mesh);
 #endif

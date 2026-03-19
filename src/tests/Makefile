@@ -6,7 +6,9 @@
 # PROGS += test-cl-cube.c
 # PROGS += test-cl-icosphere.c
 # PROGS += test-cl-simple-triangle-rotating-cam.c
-PROGS += test-cl-physics.c
+# untested above
+# PROGS += test-cl-physics.c # works
+PROGS += test-cl-balls.c # works
 
 COMMON_SRC := ../gpu/mailbox.c ../gpu/mailbox-interface.c
 COMMON_SRC += ../gpu/cl-interface.c
@@ -21,6 +23,7 @@ COMMON_SRC += ../graphics/nv.c
 COMMON_SRC += ../geom/geom.c
 COMMON_SRC += ../graphics/render.c
 COMMON_SRC += ../physics/collision.c
+COMMON_SRC += ../physics/dynamics.c
 
 CFLAGS += -I../gpu
 CFLAGS += -I../matrix

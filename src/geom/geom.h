@@ -16,12 +16,23 @@ typedef struct {
     vec3 n0, n1, n2;  // per-vertex smooth normals in object space
 } triangle;
 
+typedef enum {
+    SHAPE_MESH = 0,
+    SHAPE_SPHERE = 1,
+    SHAPE_BOX = 2
+} shape_type;
+
 typedef struct {
     int id;
     int triangle_count;
     triangle *triangles;
     bool smooth_normals;  // true for icosphere/icosahedron only
     float r, g, b;
+    int visible;
+
+    shape_type type;
+    float radius;                // used only when shape == SHAPE_SPHERE
+    float hx, hy, hz;
 } mesh_geom;
 
 static inline float triangle_area(triangle t) {
@@ -95,21 +106,21 @@ static vec3 mesh_compute_surface_inertia_body(const mesh_geom *mesh, float total
     return inertia;
 }
 
-mesh_geom mesh_geom_init_custom_take(int triangle_count, triangle *triangles, float r, float g, float b);
+mesh_geom mesh_geom_init_custom_take(int triangle_count, triangle *triangles, float r, float g, float b, int visible);
 
-mesh_geom mesh_geom_init_custom_copy(int triangle_count, const triangle *triangles, float r, float g, float b);
+mesh_geom mesh_geom_init_custom_copy(int triangle_count, const triangle *triangles, float r, float g, float b, int visible);
 
-mesh_geom mesh_geom_init_triangle(triangle tri, float r, float g, float b);
+mesh_geom mesh_geom_init_triangle(triangle tri, float r, float g, float b, int visible);
 
-mesh_geom mesh_geom_init_box(float hx, float hy, float hz, float r, float g, float b);
+mesh_geom mesh_geom_init_box(float hx, float hy, float hz, float r, float g, float b, int visible);
 
-mesh_geom mesh_geom_init_plane(float hx, float hz, float r, float g, float b);
+mesh_geom mesh_geom_init_plane(float hx, float hz, float r, float g, float b, int visible);
 
-mesh_geom mesh_geom_init_tetrahedron(float radius, float r, float g, float b);
+mesh_geom mesh_geom_init_tetrahedron(float radius, float r, float g, float b, int visible);
 
-mesh_geom mesh_geom_init_icosahedron(float radius, float r, float g, float b);
+mesh_geom mesh_geom_init_icosahedron(float radius, float r, float g, float b, int visible);
 
-mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions, float r, float g, float b);
+mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions, float r, float g, float b, int visible);
 
 // precomputes smooth per-vertex normals by averaging face normals of triangles
 // sharing each vertex position. O(N^2) — run once at mesh init

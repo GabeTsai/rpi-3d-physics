@@ -13,7 +13,6 @@ static vec3 phys_safe_inv_vec3(vec3 v) {
     return out;
 }
 
-
 static int phys_geom_set_mass_properties(rigid_body_geom *g, float mass, vec3 inertia_body) {
     if (!g) return -1;
 

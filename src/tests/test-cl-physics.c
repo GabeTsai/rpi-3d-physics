@@ -7,25 +7,22 @@
 #include "v3d.h"
 #include "stdint.h"
 #include "frag-shader-fixed-light.h"
-#include "mailbox-interface.h"
 #include "render.h"
-#include "dynamics.h"
-#include "collision.h"
 
-void notmain(void) { 
+void notmain(void) {
     kmalloc_init(20);
-    mbox_response_t response = RPI_qpu_enable(1);
+    RPI_qpu_enable(1);
 
-    int p_width = 1280;
-    int p_height = 704;
-    int width_tiles = p_width / 64;
-    int height_tiles = p_height / 64;
+    const int p_width = 1280;
+    const int p_height = 704;
+    const int width_tiles = p_width / 64;
+    const int height_tiles = p_height / 64;
 
     fb_info_t fb = RPI_fb_init(p_width, p_height, p_width, p_height, 32);
-    
+
     camera cam;
     camera_init(&cam,
-        vec3_make(0.0f, 0.0f, -800.0f),
+        vec3_make(0.0f, 10.0f, -80.0f),
         quat_from_euler(0.0f, 0.0f, 0.0f),
         640.0f, 640.0f,
         0.0f, 0.0f, 1.0f, 5000.0f);
@@ -41,17 +38,17 @@ void notmain(void) {
     cl_builder_t binning_cl;
     binning_state_t binning_state =
         cl_init_binning(&binning_cl, width_tiles, height_tiles, p_width, p_height, 1);
-    
+
+    cl_builder_t rendering_cl;
+    cl_init_rendering(&rendering_cl, binning_state.tile_alloc_addr, render_state);
+
     uint32_t *frag_shader_code_addr = (uint32_t *)frag_shader_fixed_light;
     uint32_t frag_shader_code_addr_gpu = CPU_TO_BUS(frag_shader_code_addr);
 
-    uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
-
-    rigid_body rbs[3];
-
+    const uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
     vec3 light_dir = vec3_make(0.0f, 0.0f, -1.0f);
 
-    int max_vertices = NUM_TRIANGLES_PER_BOX * 3 * 3;
+    const int max_vertices = NUM_TRIANGLES_PER_BOX * 3 * 3;
 
     nv_vertex_nch_nps_t *shaded_vertex_data_addr =
         (nv_vertex_nch_nps_t *)kmalloc_aligned(
@@ -61,52 +58,58 @@ void notmain(void) {
     uint16_t *indices =
         (uint16_t *)kmalloc_aligned(max_vertices * sizeof(uint16_t), 4);
 
-    static rigid_body scene_storage[MAX_RIGID_BODIES];
+    rigid_body rbs[3];
+    rigid_body *scene_storage[MAX_RIGID_BODIES];
     scene sc;
     scene_init(&sc, scene_storage);
 
-    rigid_body_geom geom;
-    mesh_geom mesh = mesh_geom_init_box(20.0f, 20.0f, 20.0f, 1.0f, 0.0f, 0.0f);
-    phys_geom_init(&geom, mesh, 1.0f);
+    rigid_body_geom geom_top;
+    rigid_body_geom geom_floor;
+    rigid_body_geom geom_bottom;
 
-    geom.mesh = mesh;
-    phys_body_init(&rbs[2], &geom, vec3_make(00.0f, 100.0f, 0.0f), quat_identity());
+    mesh_geom mesh_top =
+        mesh_geom_init_box(2.0f, 2.0f, 2.0f, 1.0f, 0.0f, 0.0f, 1);
+    mesh_geom mesh_floor =
+        mesh_geom_init_box(50.0f, 1.0f, 50.0f, 1.0f, 0.0f, 0.0f, 1);
+    mesh_geom mesh_bottom =
+        mesh_geom_init_box(2.0f, 2.0f, 2.0f, 2.0f, 0.0f, 1.0f, 1);
 
-    rigid_body_geom geom0;
-    mesh_geom mesh0 = mesh_geom_init_box(500.0f, 10.0f, 500.0f, 1.0f, 0.0f, 0.0f);
-    phys_geom_init(&geom0, mesh0, 10000.0f);
+    phys_geom_init(&geom_top, mesh_top, 1.0f);
+    phys_geom_init(&geom_floor, mesh_floor, 10000.0f);
+    phys_geom_init(&geom_bottom, mesh_bottom, 1.0f);
 
-    geom0.mesh = mesh0;
-    phys_body_init(&rbs[1], &geom0, vec3_make(00.0f, -100.0f, 0.0f), quat_identity());
+    geom_top.mesh = mesh_top;
+    geom_floor.mesh = mesh_floor;
+    geom_bottom.mesh = mesh_bottom;
 
-    rigid_body_geom geom1;
-    mesh_geom mesh1 = mesh_geom_init_box(20.0f, 20.0f, 20.0f, 20.0f, 0.0f, 1.0f);
-    phys_geom_init(&geom1, mesh1, 1.0f);
-        
-    geom1.mesh = mesh1;
-    phys_body_init(&rbs[0], &geom1, vec3_make(100.0f, -25.0f, 0.0f), quat_identity());
+    phys_body_init(&rbs[2], &geom_top,
+                   vec3_make(0.0f, 10.0f, 0.0f), quat_identity());
+    phys_body_init(&rbs[1], &geom_floor,
+                   vec3_make(0.0f, -10.0f, 0.0f), quat_identity());
+    phys_body_init(&rbs[0], &geom_bottom,
+                   vec3_make(0.0f, -5.0f, 0.0f), quat_identity());
 
-    rbs[0].state.linear_velocity = (vec3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
-    rbs[0].state.angular_velocity = (vec3){ .x = 1.0f, .y = 0.0f, .z = 0.0f };
+    rbs[0].state.linear_velocity = vec3_zero();
+    rbs[0].state.angular_velocity = vec3_make(1.0f, 0.0f, 0.0f);
 
-    rbs[2].state.linear_velocity = (vec3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
-    rbs[2].state.angular_velocity = (vec3){ .x = 4.0f, .y = 2.0f, .z = 3.0f };//{ .x = -2.0f, .y = -0.5f, .z = 0.0f };
+    rbs[1].state.linear_velocity = vec3_zero();
+    rbs[1].state.angular_velocity = vec3_zero();
 
-    cl_builder_t rendering_cl;
-    cl_init_rendering(&rendering_cl, binning_state.tile_alloc_addr, render_state);
+    rbs[2].state.linear_velocity = vec3_zero();
+    rbs[2].state.angular_velocity = vec3_make(4.0f, 2.0f, 3.0f);
 
-    // Build scene once to get initial vertex/index data and primitive count.
     scene_clear(&sc);
     scene_add_rigid_body(&sc, &rbs[0]);
     scene_add_rigid_body(&sc, &rbs[1]);
     scene_add_rigid_body(&sc, &rbs[2]);
 
-    int total_verts = render_scene(&sc,
+    int total_verts = redraw_scene(&sc,
                                    &cam,
                                    0.8f,
                                    light_dir,
                                    indices,
-                                   shaded_vertex_data_addr);
+                                   shaded_vertex_data_addr,
+                                   max_vertices);
 
     cl_bin_primitives(&binning_cl,
                       vertex_data_stride,
@@ -115,32 +118,30 @@ void notmain(void) {
                       indices,
                       total_verts);
 
-    phys_body_add_force(&rbs[0], vec3_make(0.0f, -20.0f, 0.0f));
-    phys_body_add_force(&rbs[2], vec3_make(0.0f, -20.0f, 0.0f));
+    phys_body_add_force(&rbs[0], vec3_make(0.0f, -10.0f, 0.0f));
+    phys_body_add_force(&rbs[2], vec3_make(0.0f, -10.0f, 0.0f));
 
     while (1) {
-        float dt = 20.0f * 0.001f;
+        const float dt = 10.0f * 0.001f;
 
-        phys_body_integrate(&rbs[0], dt);
-        phys_body_integrate(&rbs[1], dt);
-        phys_body_integrate(&rbs[2], dt);
+        scene_integrate_all(&sc, dt);
+        scene_resolve_all_collisions(&sc);
 
-        collision_result res = phys_collide_convex(&rbs[0], &rbs[1]);
-        if (res.hit) {
-            phys_resolve_collision_basic(&rbs[0], &rbs[1], &res);
-        }
-
-        scene_clear(&sc);
-        scene_add_rigid_body(&sc, &rbs[0]);
-        scene_add_rigid_body(&sc, &rbs[1]);
-        scene_add_rigid_body(&sc, &rbs[2]);
-
-        total_verts = render_scene(&sc,
+        total_verts = redraw_scene(&sc,
                                    &cam,
                                    0.8f,
                                    light_dir,
                                    indices,
-                                   shaded_vertex_data_addr);
+                                   shaded_vertex_data_addr,
+                                   max_vertices);
+
+        cl_bin_primitives(&binning_cl,
+                          vertex_data_stride,
+                          frag_shader_code_addr_gpu,
+                          shaded_vertex_data_addr_gpu,
+                          indices,
+                          total_verts);
+
         printk("B verts=%d\n", total_verts);
 
         clear_flush_count();
@@ -150,8 +151,6 @@ void notmain(void) {
         cl_render_one_frame(&rendering_cl);
         printk("D\n");
 
-        printk("hit? %d\n", res.hit);
-        printk("depth? %f\n", res.epa.depth);
         delay_ms(5);
     }
 }
