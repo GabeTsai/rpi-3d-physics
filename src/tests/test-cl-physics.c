@@ -47,12 +47,11 @@ void notmain(void) {
 
     uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
 
-    int num_bodies = 3;
-    rigid_body rbs[num_bodies];
+    rigid_body rbs[3];
 
     vec3 light_dir = vec3_make(0.0f, 0.0f, -1.0f);
 
-    int max_vertices = NUM_TRIANGLES_PER_BOX * num_bodies * 3;
+    int max_vertices = NUM_TRIANGLES_PER_BOX * 3 * 3;
 
     nv_vertex_nch_nps_t *shaded_vertex_data_addr =
         (nv_vertex_nch_nps_t *)kmalloc_aligned(
@@ -62,7 +61,7 @@ void notmain(void) {
     uint16_t *indices =
         (uint16_t *)kmalloc_aligned(max_vertices * sizeof(uint16_t), 4);
 
-    rigid_body scene_storage[MAX_RIGID_BODIES];
+    static rigid_body scene_storage[MAX_RIGID_BODIES];
     scene sc;
     scene_init(&sc, scene_storage);
 
@@ -131,7 +130,6 @@ void notmain(void) {
             phys_resolve_collision_basic(&rbs[0], &rbs[1], &res);
         }
 
-
         scene_clear(&sc);
         scene_add_rigid_body(&sc, &rbs[0]);
         scene_add_rigid_body(&sc, &rbs[1]);
@@ -143,12 +141,14 @@ void notmain(void) {
                                    light_dir,
                                    indices,
                                    shaded_vertex_data_addr);
+        printk("B verts=%d\n", total_verts);
 
         clear_flush_count();
         cl_bin_one_frame(&binning_cl);
 
         clear_frame_count();
         cl_render_one_frame(&rendering_cl);
+        printk("D\n");
 
         printk("hit? %d\n", res.hit);
         printk("depth? %f\n", res.epa.depth);

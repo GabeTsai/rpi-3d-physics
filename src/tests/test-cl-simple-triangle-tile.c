@@ -91,5 +91,5 @@ shaded_vertex_data_addr_gpu, indices, total_verts);
     cl_render_one_frame(&rendering_cl);
     output("frame count after: %x\n", get_frame_count());
 
-    while(1);
+    delay_ms(5000);
 }

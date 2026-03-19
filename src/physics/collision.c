@@ -28,11 +28,6 @@ typedef struct {
     int alive;
 } epa_face;
 
-/* -------------------- small vec helpers -------------------- */
-
-
-/* -------------------- transforms -------------------- */
-
 static vec3 rotate_vec(const quat *q, vec3 v) {
     return quat_rotate_vec3(*q, v);
 }
@@ -78,8 +73,6 @@ static vec3 local_to_world_point(const rigid_body *b, vec3 p_local) {
 
     return out;
 }
-
-/* -------------------- support mapping -------------------- */
 
 static vec3 support_local_mesh(const mesh_geom *m, vec3 dir_local) {
     vec3 best = {.x=0,.y=0,.z=0};
@@ -652,14 +645,6 @@ static int seed_epa_simplex(const rigid_body *a, const rigid_body *b,
         verts[2] = p2;
         verts[3] = p3;
 
-        // for (int i = 0; i < 4; i++) {
-        //     printk("verts[%d].p = (%f, %f, %f)\n",
-        //         i,
-        //         verts[i].p.x,
-        //         verts[i].p.y,
-        //         verts[i].p.z);
-        // }
-
         *vert_count = 4;
         return 1;
     }
@@ -720,7 +705,7 @@ epa_result phys_epa_from_gjk(const rigid_body *a, const rigid_body *b,
     memset(&out, 0, sizeof(out));
     // printk("hello here\n");
 
-    support_point verts[EPA_MAX_FACES];
+    static support_point verts[EPA_MAX_FACES];
     int vert_count = 0;
 
     if (!seed_epa_simplex(a, b, gjk_simplex, verts, &vert_count))
@@ -729,7 +714,7 @@ epa_result phys_epa_from_gjk(const rigid_body *a, const rigid_body *b,
     if (vert_count < 4)
         return out;
 
-    epa_face faces[EPA_MAX_FACES];
+    static epa_face faces[EPA_MAX_FACES];
     int face_count = 0;
 
     epa_make_face(&faces[face_count++], 0, 1, 2, verts);
@@ -775,7 +760,7 @@ epa_result phys_epa_from_gjk(const rigid_body *a, const rigid_body *b,
         int new_idx = vert_count++;
         verts[new_idx] = p;
 
-        edge2i loose[EPA_MAX_LOOSE_EDGES];
+        static edge2i loose[EPA_MAX_LOOSE_EDGES];
         int loose_count = 0;
 
         for (int i = 0; i < face_count; ++i) {

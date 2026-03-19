@@ -4,6 +4,7 @@
 # PROGS += test-cl-simple-triangle-tile.c
 # PROGS += test-cl-simple-triangle-rotate-light.c
 # PROGS += test-cl-cube.c
+# PROGS += test-cl-icosphere.c
 # PROGS += test-cl-simple-triangle-rotating-cam.c
 PROGS += test-cl-physics.c
 

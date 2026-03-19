@@ -48,15 +48,17 @@ void cl_bin_primitives(cl_builder_t *cl, int vertex_data_stride, uint32_t frag_s
                         num_vertices, CPU_TO_BUS(vert_index_list), num_vertices - 1);
     cl_emit_indexed_primitive_list(cl, primitive_list_cfg);
 
-    cl_emit_single_control_id(cl, FLUSH_ALL_STATE);
 }
 
 void cl_bin_one_frame(cl_builder_t *cl) {
+    uint32_t saved = cl->bytes_written;
+    cl_emit_single_control_id(cl, FLUSH_ALL_STATE);
     reset_cle_thread(0);
     PUT32(V3D_CT0CA, cl->gpu_addr);
     PUT32(V3D_CT0EA, cl->gpu_addr + cl->bytes_written);
     while ((GET32(V3D_BFC) & 0xff) == 0) {}
     assert(GET32(V3D_CT0CA) == GET32(V3D_CT0EA));
+    cl->bytes_written = saved;  // overwrite FLUSH_ALL_STATE next frame, not accumulate
 }
 
 void cl_init_rendering(cl_builder_t *cl, uint32_t tile_alloc_addr, render_state_t rs) {

@@ -22,22 +22,35 @@ int render_rigid_body(const rigid_body *rb, const camera *cam,
     mesh_geom mesh = rb->geom.mesh;
     quat q = rb->state.orientation;
     vec3 p = rb->state.position;
-
     vec3 rgb = vec3_make(r, g, b);
+#if GOURAUD_SHADING
+    // rotate light into object space removes 3 normal rotations per triangle
+    vec3 light_obj = vec3_zero();
+    if (mesh.smooth_normals)
+        light_obj = quat_rotate_vec3(quat_conjugate(q), vec3_normalize(light_dir));
+#endif
     int count = 0;
     for (int i = 0; i < mesh.triangle_count; i++) {
         vec3 world[3];
         float proj_xs[3], proj_ys[3], proj_zs[3];
         if (!proj_tri_to_screen(mesh.triangles[i], world, proj_xs, proj_ys, proj_zs, cam, q, p))
             continue;
-
-        vec3 intensity_rgb = vec3_sun_intensity_rgb(light_dir, rgb, world[0], world[1], world[2], AMBIENT_INTENSITY_DEF);
-        put_proj_tri_to_nv(proj_xs, proj_ys, proj_zs,
-                           intensity_rgb.r, intensity_rgb.g, intensity_rgb.b,
-                           vert_offset + count, vert_index_list, shaded_vertex_data_addr);
+        vec3 c0, c1, c2;
+#if GOURAUD_SHADING
+        if (mesh.smooth_normals) {
+            triangle tri = mesh.triangles[i];
+            c0 = vec3_scale(rgb, fmaxf(AMBIENT_INTENSITY_DEF, vec3_dot(light_obj, tri.n0)));
+            c1 = vec3_scale(rgb, fmaxf(AMBIENT_INTENSITY_DEF, vec3_dot(light_obj, tri.n1)));
+            c2 = vec3_scale(rgb, fmaxf(AMBIENT_INTENSITY_DEF, vec3_dot(light_obj, tri.n2)));
+        } else
+#endif
+        {
+            c0 = c1 = c2 = vec3_sun_intensity_rgb(light_dir, rgb, world[0], world[1], world[2], AMBIENT_INTENSITY_DEF);
+        }
+        put_proj_tri_to_nv(proj_xs, proj_ys, proj_zs, c0, c1, c2,
+            vert_offset + count, vert_index_list, shaded_vertex_data_addr);
         count += 3;
     }
-
     return count;
 }
 

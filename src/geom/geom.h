@@ -4,6 +4,7 @@
 #include "rpi-math.h"
 #include "vec3.h"
 #include "quat.h"
+#include "stdbool.h"
 
 #define NUM_TRIANGLES_PER_BOX 12
 #define NUM_TRIANGLES_PER_ICOSPHERE 20
@@ -12,12 +13,14 @@
 
 typedef struct {
     vec3 v0, v1, v2;
+    vec3 n0, n1, n2;  // per-vertex smooth normals in object space
 } triangle;
 
 typedef struct {
     int id;
     int triangle_count;
     triangle *triangles;
+    bool smooth_normals;  // true for icosphere/icosahedron only
     float r, g, b;
 } mesh_geom;
 
@@ -107,3 +110,8 @@ mesh_geom mesh_geom_init_tetrahedron(float radius, float r, float g, float b);
 mesh_geom mesh_geom_init_icosahedron(float radius, float r, float g, float b);
 
 mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions, float r, float g, float b);
+
+// precomputes smooth per-vertex normals by averaging face normals of triangles
+// sharing each vertex position. O(N^2) — run once at mesh init
+// necessary for gouraud shading of icospheres
+void mesh_geom_compute_smooth_normals(mesh_geom *mesh);

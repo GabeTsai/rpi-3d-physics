@@ -31,12 +31,13 @@ void put_mesh_geom_to_nv(mesh_geom mesh, uint16_t *vert_index_list, nv_vertex_nc
 }
 
 void put_proj_tri_to_nv(float xs[3], float ys[3], float zs[3],
-    float r, float g, float b,
+    vec3 c0, vec3 c1, vec3 c2,
     int base_idx,
     uint16_t *vert_index_list,
     nv_vertex_nch_nps_t *shaded_vertex_data_addr) {
+    vec3 cs[3] = { c0, c1, c2 };
     for (int i = 0; i < 3; i++) {
-        shaded_vertex_data_addr[base_idx + i] = make_nv_vertex_nch_nps(xs[i], ys[i], zs[i], INV_WC_DEF, r, g, b);
+        shaded_vertex_data_addr[base_idx + i] = make_nv_vertex_nch_nps(xs[i], ys[i], zs[i], INV_WC_DEF, cs[i].r, cs[i].g, cs[i].b);
         vert_index_list[base_idx + i] = base_idx + i;
     }
 }

@@ -11,7 +11,8 @@
 #include "render.h"
 
 /*
- This test renders 20 cubes in a line. camera looks straight at cubes.
+ two rows of 10 icospheres: bottom row at y=0, top row at y=50, same x positions.
+ each row is a separate draw call with its own vertex buffer and index list.
 */
 void notmain(void) { 
     kmalloc_init(20);
@@ -26,8 +27,8 @@ void notmain(void) {
     
     camera cam;
     camera_init(&cam,
-        vec3_make(0.0f, 0.0f, -400.0f),      // offset above and to the side
-        quat_from_euler(0.0f, 0.0f, 0.0f),    // tilt down, rotate left to face origin
+        vec3_make(0.0f, 0.0f, -350.0f),
+        quat_from_euler(0.0f, 0.0f, 0.0f),
         900.0f, 900.0f,
         0.0f, 0.0f, 
         1.0f, 5000.0f);     
@@ -46,39 +47,46 @@ void notmain(void) {
     uint32_t frag_shader_code_addr_gpu = CPU_TO_BUS(frag_shader_code_addr);
 
     uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
-    
-    uint16_t total_verts = 0;
-    int num_bodies = 10;
-    int radius = 20;
-    int subdivisions = 3;
 
-    rigid_body rbs[num_bodies];
+    int batch_size = 10;
+    int radius = 20;
+    int subdivisions = 2;
     vec3 light_dir = vec3_make(0.0f, 0.0f, -1.0f);
 
-    int total_vertices = NUM_TRIANGLES_PER_SPHERE(subdivisions) * num_bodies * 3;
-    output("total_vertices: %d\n", total_vertices);
-    nv_vertex_nch_nps_t *shaded_vertex_data_addr =
-        (nv_vertex_nch_nps_t *) kmalloc_aligned(total_vertices * sizeof(nv_vertex_nch_nps_t), 16);
-    uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
+    int verts_per_batch = NUM_TRIANGLES_PER_SPHERE(subdivisions) * batch_size * 3;
 
-    uint16_t *indices = kmalloc_aligned(total_vertices * sizeof(uint16_t), 4);
+    // two independent vertex buffers — indices in each reset to 0
+    nv_vertex_nch_nps_t *verts1 = (nv_vertex_nch_nps_t *) kmalloc_aligned(verts_per_batch * sizeof(nv_vertex_nch_nps_t), 16);
+    nv_vertex_nch_nps_t *verts2 = (nv_vertex_nch_nps_t *) kmalloc_aligned(verts_per_batch * sizeof(nv_vertex_nch_nps_t), 16);
+    uint16_t *idx1 = kmalloc_aligned(verts_per_batch * sizeof(uint16_t), 4);
+    uint16_t *idx2 = kmalloc_aligned(verts_per_batch * sizeof(uint16_t), 4);
 
-    for (int i = 0; i < num_bodies; i++) { 
-        rigid_body_geom geom; 
-        // initialize physical properties - dimension, mass
-        phys_geom_init_sphere(&geom, radius, 1.0f);
-        // create the actual mesh geometry and give it a color, store in mesh_geom
-        mesh_geom mesh = mesh_geom_init_icosphere(geom.shape.sphere.radius, subdivisions, 1.0f, 0.0f, 0.0f);
-        geom.shape.mesh = mesh;
-        // initialize the rigid body with the geometry and position
-        phys_body_init(&rbs[i], &geom, vec3_make(i * 2 * radius - 200, 0.0f, 0.0f), quat_identity());
-        // put the rigid body to the nv pipeline
-        total_verts += render_rigid_body(&rbs[i], &cam, light_dir, 1.0f, 0.0f, 0.0f, total_verts, indices, shaded_vertex_data_addr);
+    // mesh built once, shared across all 20 bodies
+    rigid_body_geom shared_geom;
+    phys_geom_init_sphere(&shared_geom, radius, 1.0f);
+    mesh_geom shared_mesh = mesh_geom_init_icosphere(radius, subdivisions, 1.0f, 0.0f, 0.0f);
+    shared_geom.shape.mesh = shared_mesh;
+
+    rigid_body rbs[batch_size * 2];
+
+    // batch 1: bottom row at y = 0
+    int count1 = 0;
+    for (int i = 0; i < batch_size; i++) {
+        phys_body_init(&rbs[i], &shared_geom, vec3_make(i * 2 * (radius + 2) - 200, 0.0f, 0.0f), quat_identity());
+        count1 += render_rigid_body(&rbs[i], &cam, light_dir, 1.0f, 0.0f, 0.0f, count1, idx1, verts1);
     }
 
-    output("total_verts: %d\n", total_verts);
-    cl_bin_primitives(&binning_cl, vertex_data_stride, frag_shader_code_addr_gpu, 
-shaded_vertex_data_addr_gpu, indices, total_verts);
+    // batch 2: top row at y = 50, vert_offset resets to 0 for the new buffer
+    int count2 = 0;
+    for (int i = 0; i < batch_size; i++) {
+        phys_body_init(&rbs[batch_size + i], &shared_geom, vec3_make(i * 2 * (radius + 2) - 200, 50.0f, 0.0f), quat_identity());
+        count2 += render_rigid_body(&rbs[batch_size + i], &cam, light_dir, 1.0f, 0.0f, 0.0f, count2, idx2, verts2);
+    }
+
+    output("count1: %d  count2: %d\n", count1, count2);
+    cl_bin_primitives(&binning_cl, vertex_data_stride, frag_shader_code_addr_gpu, CPU_TO_BUS(verts1), idx1, count1);
+    cl_bin_primitives(&binning_cl, vertex_data_stride, frag_shader_code_addr_gpu, CPU_TO_BUS(verts2), idx2, count2);
+
     cl_bin_one_frame(&binning_cl);
     // // RENDERING PASS
     cl_builder_t rendering_cl;

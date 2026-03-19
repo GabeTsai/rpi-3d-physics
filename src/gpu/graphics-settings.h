@@ -18,6 +18,10 @@ typedef enum {
 #include "rpi.h"
 
 #define AMBIENT_INTENSITY_DEF 0.5f
+
+// set to 1 for smooth Gouraud shading on meshes with precomputed vertex normals
+// set to 0 for flat shading on all meshes
+#define GOURAUD_SHADING 1
 #define DEFAULT_FB_CLEAR_COLOR 0xFF18191AFF18191AULL
 
 #endif

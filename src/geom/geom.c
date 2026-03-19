@@ -1,5 +1,6 @@
 // geom.c
 #include "geom.h"
+#include "graphics-settings.h"
 
 static int g_next_mesh_geom_id = 0;
 
@@ -24,11 +25,38 @@ static mesh_geom mesh_geom_make(
     mesh.id = g_next_mesh_geom_id++;
     mesh.triangle_count = triangle_count;
     mesh.triangles = triangles;
-
+    mesh.smooth_normals = false;
     mesh.r = r;
     mesh.g = g;
     mesh.b = b;
     return mesh;
+}
+
+void mesh_geom_compute_smooth_normals(mesh_geom *mesh) {
+    int triangle_count = mesh->triangle_count;
+    for (int i = 0; i < triangle_count; i++) {
+        triangle *tri = &mesh->triangles[i];
+        vec3 vi[3] = { tri->v0, tri->v1, tri->v2 };
+        vec3 *ni[3] = { &tri->n0, &tri->n1, &tri->n2 };
+        for (int j = 0; j < 3; j++) {
+            vec3 acc = vec3_zero();
+            for (int k = 0; k < triangle_count; k++) {
+                triangle *tk = &mesh->triangles[k];
+                vec3 vk[3] = { tk->v0, tk->v1, tk->v2 };
+                for (int l = 0; l < 3; l++) { 
+                    // if triangle shares vertex, add face normal to accumulator
+                    if (fabsf(vi[j].x - vk[l].x) < 1e-5f &&
+                        fabsf(vi[j].y - vk[l].y) < 1e-5f &&
+                        fabsf(vi[j].z - vk[l].z) < 1e-5f) {
+                        acc = vec3_add(acc, vec3_face_norm(tk->v0, tk->v1, tk->v2));
+                        break; // for icospheres, one vertex overlap = edge overlap so add and move on
+                    }
+                }
+            }
+            *ni[j] = vec3_normalize(acc);
+        }
+    }
+    mesh->smooth_normals = true;
 }
 
 mesh_geom mesh_geom_init_custom_take(int triangle_count, triangle *triangles, float r, float g, float b) {
@@ -151,7 +179,11 @@ mesh_geom mesh_geom_init_icosahedron(float radius, float r, float g, float b) {
         };
     }
 
-    return mesh_geom_make(20, tris, r, g, b);
+    mesh_geom mesh = mesh_geom_make(20, tris, r, g, b);
+#if GOURAUD_SHADING
+    mesh_geom_compute_smooth_normals(&mesh);
+#endif
+    return mesh;
 }
 
 static inline vec3 mesh_midpoint_on_sphere(vec3 a, vec3 b, float radius) {
@@ -191,5 +223,9 @@ mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions,
         curr_count = next_count;
     }
 
-    return mesh_geom_make(curr_count, curr, r, g, b);
+    mesh_geom mesh = mesh_geom_make(curr_count, curr, r, g, b);
+#if GOURAUD_SHADING
+    mesh_geom_compute_smooth_normals(&mesh);
+#endif
+    return mesh;
 }

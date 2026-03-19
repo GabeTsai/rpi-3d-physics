@@ -63,17 +63,15 @@ void notmain(void) {
     uint16_t *indices = kmalloc_aligned(total_vertices * sizeof(uint16_t), 4);
     int start_x = -p_width / 2 + cube_size;
 
+    // mesh built once, all bodies share same triangle array pointer
+    rigid_body_geom shared_geom;
+    phys_geom_init_box(&shared_geom, cube_size, cube_size, cube_size, 1.0f);
+    mesh_geom shared_mesh = mesh_geom_init_box(shared_geom.shape.box.hx, shared_geom.shape.box.hy, shared_geom.shape.box.hz, 1.0f, 0.0f, 0.0f);
+    shared_geom.shape.mesh = shared_mesh;
+
     for (int i = 0; i < num_bodies; i++) { 
-        rigid_body_geom geom; 
-        // initialize physical properties - dimension, mass
-        phys_geom_init_box(&geom, cube_size, cube_size, cube_size, 1.0f);
-        // create the actual mesh geometry and give it a color, store in mesh_geom
-        mesh_geom mesh = mesh_geom_init_box(geom.shape.box.hx, geom.shape.box.hy, geom.shape.box.hz, 1.0f, 0.0f, 0.0f);
-        geom.shape.mesh = mesh;
-        // initialize the rigid body with the geometry and position
-        phys_body_init(&rbs[0], &geom, vec3_make(start_x + i * (2 * cube_size + spacing), 0.0f, 0.0f), quat_identity());
-        // put the rigid body to the nv pipeline
-        total_verts += render_rigid_body(&rbs[0], &cam, light_dir, 1.0f, 0.0f, 0.0f, total_verts, indices, shaded_vertex_data_addr);
+        phys_body_init(&rbs[i], &shared_geom, vec3_make(start_x + i * (2 * cube_size + spacing), 0.0f, 0.0f), quat_identity());
+        total_verts += render_rigid_body(&rbs[i], &cam, light_dir, 1.0f, 0.0f, 0.0f, total_verts, indices, shaded_vertex_data_addr);
     }
 
     output("total_verts: %d\n", total_verts);
@@ -85,5 +83,5 @@ shaded_vertex_data_addr_gpu, indices, total_verts);
     cl_init_rendering(&rendering_cl, binning_state.tile_alloc_addr, render_state);
     cl_render_one_frame(&rendering_cl);
 
-    while(1);
+    delay_ms(5000);
 }
