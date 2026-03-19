@@ -3,6 +3,7 @@
 #include "matrix.h"
 #include "vec3.h"
 #include "quat.h"
+#include "geom.h"
 
 static inline vec3 transform_xyz(const matrix *T, vec3 p) {
     float ox = T->entries[0] * p.x + T->entries[1] * p.y + T->entries[2] * p.z + T->entries[3];

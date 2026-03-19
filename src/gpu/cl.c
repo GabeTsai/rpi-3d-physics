@@ -63,7 +63,7 @@ void cl_init_rendering(cl_builder_t *cl, uint32_t tile_alloc_addr, render_state_
     uint8_t *cl_buf = (uint8_t *) kmalloc(CL_BUF_SIZE_DEF);
     cl_init(cl, cl_buf, CPU_TO_BUS(cl_buf), CL_BUF_SIZE_DEF);
 
-    cl_emit_clear_colors(cl, 0xFF000000FF000000ULL, 0xFFFFFF, 0, 0);
+    cl_emit_clear_colors(cl, DEFAULT_FB_CLEAR_COLOR, 0xFFFFFF, 0, 0);
     tile_render_cfg_t render_cfg = default_tile_render_cfg(rs.fb_base_addr, rs.width_px, rs.height_px);
     cl_emit_tile_render_mode_cfg(cl, render_cfg);
 

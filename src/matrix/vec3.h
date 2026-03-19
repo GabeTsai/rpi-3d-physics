@@ -13,8 +13,12 @@ static inline vec3 vec3_make(float x, float y, float z) {
     return v;
 }
 
+static inline void vec3_print(const char *name, vec3 v) { 
+    output("%s = (%f, %f, %f)\n", name, v.x, v.y, v.z);
+}
+
 static inline vec3 vec3_init(float v) { 
-    return vec3_make(v, v, v);
+return vec3_make(v, v, v);
 }
 
 static inline void vec3_to_arr(vec3 v, float out[3]) { 
@@ -108,4 +112,9 @@ static inline float vec3_sun_intensity(vec3 light_dir,vec3 a, vec3 b, vec3 c, fl
     vec3 light_norm = vec3_normalize(light_dir);
     vec3 face_norm = vec3_face_norm(a, b, c);
     return fmaxf(ambient_intensity, vec3_dot(light_norm, face_norm));
+}
+
+static inline vec3 vec3_sun_intensity_rgb(vec3 light_dir, vec3 rgb, vec3 a, vec3 b, vec3 c, float ambient_intensity) {
+    float intensity = vec3_sun_intensity(light_dir, a, b, c, ambient_intensity);
+    return vec3_scale(rgb, intensity);
 }

@@ -17,6 +17,7 @@ typedef enum {
 #include <stdbool.h>
 #include "rpi.h"
 
-#define AMBIENT_INTENSITY_DEF 0.3f
+#define AMBIENT_INTENSITY_DEF 0.5f
+#define DEFAULT_FB_CLEAR_COLOR 0xFF18191AFF18191AULL
 
 #endif

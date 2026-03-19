@@ -1,8 +1,9 @@
 # PROGS += test-float.c 
 # PROGS += test-cl-simple-triangle-rotating.c
 # PROGS += test-cl-simple-triangle.c
-# PROGS += test-cl-simple-triangle-tile.c
-PROGS += test-cl-simple-triangle-rotate-light.c
+PROGS += test-cl-simple-triangle-tile.c
+# PROGS += test-cl-simple-triangle-rotate-light.c
+# PROGS += test-cl-cube.c
 # PROGS += test-cl-simple-triangle-rotating-cam.c
 
 COMMON_SRC := ../gpu/mailbox.c ../gpu/mailbox-interface.c
@@ -16,12 +17,13 @@ COMMON_SRC += ../physics/physics.c
 COMMON_SRC += ../graphics/camera.h
 COMMON_SRC += ../graphics/nv.c
 COMMON_SRC += ../geom/geom.c
+COMMON_SRC += ../graphics/render.c
 
 CFLAGS += -I../gpu
 CFLAGS += -I../matrix
 CFLAGS += -I../physics
-CFLAGS += -I../graphics
 CFLAGS += -I../geom
+CFLAGS += -I../graphics
 CFLAGS += $(LIBM_INC)
 LIBS += $(LIBM)
 

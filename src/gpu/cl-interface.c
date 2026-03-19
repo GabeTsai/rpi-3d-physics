@@ -3,6 +3,8 @@
 #include "v3d.h"
 #include <string.h>
 
+#define verbose_cl_interface 1
+
 void cl_init(cl_builder_t *cl, uint8_t *cpu_ptr, uint32_t gpu_addr, uint32_t capacity) {
     cl->base = cpu_ptr;
     cl->gpu_addr = gpu_addr;
@@ -20,6 +22,7 @@ void cl_emit_bytes(cl_builder_t *cl, const void *v, uint32_t size) {
     }
     memcpy(&cl->base[cl->bytes_written], v, size);
     cl->bytes_written += size;
+    
 }
 
 void cl_emit_uint8(cl_builder_t *cl, uint8_t v)   { cl_emit_bytes(cl, &v, sizeof v); }
