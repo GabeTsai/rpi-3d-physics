@@ -108,6 +108,13 @@ static inline vec3 vec3_face_norm(vec3 a, vec3 b, vec3 c) {
     return vec3_normalize(n);
 }
 
+static inline vec3 vec3_lerp3(vec3 a, vec3 b, vec3 c, float wa, float wb, float wc) {
+    return vec3_add(
+        vec3_add(vec3_scale(a, wa), vec3_scale(b, wb)),
+        vec3_scale(c, wc)
+    );
+}
+
 static inline float vec3_sun_intensity(vec3 light_dir,vec3 a, vec3 b, vec3 c, float ambient_intensity) {
     vec3 light_norm = vec3_normalize(light_dir);
     vec3 face_norm = vec3_face_norm(a, b, c);

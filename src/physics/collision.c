@@ -8,26 +8,13 @@
 
 #include "rpi.h"
 
-static void printk_float(const char *name, float v) {
-    int sign = v < 0;
-    if(sign) v = -v;
-
-    int whole = (int)v;
-    int frac  = (int)((v - whole) * 1000);   // 3 decimal places
-
-    if(sign)
-        printk("%s = -%d.%d\n", name, whole, frac);
-    else
-        printk("%s = %d.%d\n", name, whole, frac);
-}
-
 #define GJK_MAX_ITERS 32
 #define EPA_MAX_ITERS 64
 #define EPA_MAX_FACES 128
 #define EPA_MAX_LOOSE_EDGES 64
 
 #define COLL_EPS 1e-6f
-#define GJK_DUP_EPS 1e-8f
+#define GJK_DUP_EPS 1e-6f
 #define EPA_TOL 1e-4f
 
 typedef struct {
@@ -43,7 +30,18 @@ typedef struct {
 
 /* -------------------- small vec helpers -------------------- */
 
+static void printk_float(const char *name, float v) {
+    int sign = v < 0;
+    if(sign) v = -v;
 
+    int whole = (int)v;
+    int frac  = (int)((v - whole) * 1000);   // 3 decimal places
+
+    if(sign)
+        printk("%s = -%d.%d\n", name, whole, frac);
+    else
+        printk("%s = %d.%d\n", name, whole, frac);
+}
 
 /* -------------------- transforms -------------------- */
 
@@ -83,35 +81,7 @@ static vec3 support_local_mesh(const mesh_geom *m, vec3 dir_local) {
 }
 
 static vec3 support_local_shape(const rigid_body_geom *g, vec3 dir_local) {
-    switch (g->type) {
-    case PHYS_SHAPE_SPHERE: {
-        vec3 n = vec3_normalize(dir_local);
-        return vec3_scale(n, g->shape.sphere.radius);
-    }
-    case PHYS_SHAPE_BOX: {
-        vec3 p = {
-            .x=(dir_local.x >= 0.0f ? g->shape.box.hx : -g->shape.box.hx),
-            .y=(dir_local.y >= 0.0f ? g->shape.box.hy : -g->shape.box.hy),
-            .z=(dir_local.z >= 0.0f ? g->shape.box.hz : -g->shape.box.hz)
-        };
-        return p;
-    }
-    case PHYS_SHAPE_CAPSULE: {
-        /* Assume capsule axis is local +Y/-Y */
-        float r = g->shape.capsule.radius;
-        float hh = g->shape.capsule.half_height;
-
-        vec3 n = vec3_normalize(dir_local);
-        vec3 cap_center = {.x=0.0f, .y=(dir_local.y >= 0.0f ? hh : -hh), .z=0.0f};
-        return vec3_add(cap_center, vec3_scale(n, r));
-    }
-    case PHYS_SHAPE_MESH:
-        return support_local_mesh(&g->shape.mesh, dir_local);
-    default: {
-        vec3 z = {.x=0,.y=0,.z=0};
-        return z;
-    }
-    }
+    return support_local_mesh(&g->mesh, dir_local);
 }
 
 static vec3 support_world_shape(const rigid_body *b, vec3 dir_world) {
@@ -143,57 +113,24 @@ aabb3 phys_body_compute_aabb(const rigid_body *b) {
     out.max.x = out.max.y = out.max.z = -FLT_MAX;
 
     if (!b) {
-        vec3 z = {.x=0,.y=0,.z=0};
+        vec3 z = {.x = 0, .y = 0, .z = 0};
         out.min = z;
         out.max = z;
         return out;
     }
 
-    switch (b->geom.type) {
-    case PHYS_SHAPE_SPHERE: {
-        float r = b->geom.shape.sphere.radius;
-        vec3 e = {.x=r,.y=r,.z=r};
-        out.min = vec3_sub(b->state.position, e);
-        out.max = vec3_add(b->state.position, e);
-        break;
-    }
-    case PHYS_SHAPE_BOX: {
-        float hx = b->geom.shape.box.hx;
-        float hy = b->geom.shape.box.hy;
-        float hz = b->geom.shape.box.hz;
-        vec3 corners[8] = {
-            {.x=-hx,.y=-hy,-hz}, {.x=hx,.y=-hy,.z=-hz}, {.x=-hx,.y=hy,.z=-hz}, {.x=hx,.y=hy,.z=-hz},
-            {.x=-hx,.y=-hy,.z=hz}, {.x=hx,.y=-hy,.z=hz}, {.x=-hx,.y=hy,.z=hz}, {.x=hx,.y=hy,.z=hz}
-        };
-        for (int i = 0; i < 8; ++i)
-            expand_aabb_point(&out, local_to_world_point(b, corners[i]));
-        break;
-    }
-    case PHYS_SHAPE_CAPSULE: {
-        /* conservative AABB using support in cardinal directions */
-        vec3 dirs[6] = {
-            {.x=1,.y=0,.z=0}, {.x=-1,.y=0,.z=0},
-            {.x=0,.y=1,.z=0}, {.x=0,.y=-1,.z=0},
-            {.x=0,.y=0,.z=1}, {.x=0,.y=0,.z=-1}
-        };
-        for (int i = 0; i < 6; ++i)
-            expand_aabb_point(&out, support_world_shape(b, dirs[i]));
-        break;
-    }
-    case PHYS_SHAPE_MESH: {
-        const mesh_geom *m = &b->geom.shape.mesh;
-        for (int i = 0; i < m->triangle_count; ++i) {
-            expand_aabb_point(&out, local_to_world_point(b, m->triangles[i].v0));
-            expand_aabb_point(&out, local_to_world_point(b, m->triangles[i].v1));
-            expand_aabb_point(&out, local_to_world_point(b, m->triangles[i].v2));
-        }
-        break;
-    }
-    default: {
+    const mesh_geom *m = &b->geom.mesh;
+
+    if (!m->triangles || m->triangle_count <= 0) {
         out.min = b->state.position;
         out.max = b->state.position;
-        break;
+        return out;
     }
+
+    for (int i = 0; i < m->triangle_count; ++i) {
+        expand_aabb_point(&out, local_to_world_point(b, m->triangles[i].v0));
+        expand_aabb_point(&out, local_to_world_point(b, m->triangles[i].v1));
+        expand_aabb_point(&out, local_to_world_point(b, m->triangles[i].v2));
     }
 
     return out;
@@ -217,6 +154,7 @@ static int simplex_has_duplicate(const simplex3 *s, support_point p) {
 }
 
 static int do_simplex_line(simplex3 *s, vec3 *dir) {
+    // printk("line\n");
     /* A = newest = pts[1], B = pts[0] */
     vec3 A = s->pts[1].p;
     vec3 B = s->pts[0].p;
@@ -243,49 +181,100 @@ static int do_simplex_line(simplex3 *s, vec3 *dir) {
 
 static int do_simplex_triangle(simplex3 *s, vec3 *dir) {
     /* A newest = pts[2], B = pts[1], C = pts[0] */
-    vec3 A = s->pts[2].p;
-    vec3 B = s->pts[1].p;
-    vec3 C = s->pts[0].p;
+    support_point Ap = s->pts[2];
+    support_point Bp = s->pts[1];
+    support_point Cp = s->pts[0];
+
+    vec3 A = Ap.p;
+    vec3 B = Bp.p;
+    vec3 C = Cp.p;
 
     vec3 AO = vec3_neg(A);
     vec3 AB = vec3_sub(B, A);
     vec3 AC = vec3_sub(C, A);
+
+    /* Check vertex region A first */
+    float d1 = vec3_dot(AB, AO);
+    float d2 = vec3_dot(AC, AO);
+    if (d1 <= 0.0f && d2 <= 0.0f) {
+        s->pts[0] = Ap;
+        s->count = 1;
+        *dir = AO;
+        return 0;
+    }
+
+    /* Check edge region AB */
+    vec3 BO = vec3_neg(B);
+    vec3 BA = vec3_sub(A, B);
+    vec3 BC = vec3_sub(C, B);
+    float d3 = vec3_dot(BA, BO);
+    float d4 = vec3_dot(BC, BO);
+
+    if (d3 > 0.0f && d4 <= 0.0f) {
+        s->pts[0] = Bp;
+        s->pts[1] = Ap;
+        s->count = 2;
+
+        vec3 nd = vec3_cross(vec3_cross(AB, AO), AB);
+        if (vec3_norm_sq(nd) <= COLL_EPS * COLL_EPS)
+            return 1;
+        *dir = nd;
+        return 0;
+    }
+
+    /* Check edge region AC */
+    vec3 CO = vec3_neg(C);
+    vec3 CA = vec3_sub(A, C);
+    vec3 CB = vec3_sub(B, C);
+    float d5 = vec3_dot(CA, CO);
+    float d6 = vec3_dot(CB, CO);
+
+    if (d5 > 0.0f && d6 <= 0.0f) {
+        s->pts[0] = Cp;
+        s->pts[1] = Ap;
+        s->count = 2;
+
+        vec3 nd = vec3_cross(vec3_cross(AC, AO), AC);
+        if (vec3_norm_sq(nd) <= COLL_EPS * COLL_EPS)
+            return 1;
+        *dir = nd;
+        return 0;
+    }
+
+    /* Otherwise origin is in face region of triangle ABC */
     vec3 ABC = vec3_cross(AB, AC);
-
-    vec3 ab_perp = vec3_cross(ABC, AB);
-    if (vec3_dot(ab_perp, AO) > 0.0f) {
-        s->pts[0] = s->pts[1];
-        s->pts[1] = s->pts[2];
-        s->count = 2;
-        *dir = vec3_cross(vec3_cross(AB, AO), AB);
-        return 0;
-    }
-
-    vec3 ac_perp = vec3_cross(AC, ABC);
-    if (vec3_dot(ac_perp, AO) > 0.0f) {
-        s->pts[1] = s->pts[2];
-        s->count = 2;
-        *dir = vec3_cross(vec3_cross(AC, AO), AC);
-        return 0;
-    }
+    if (vec3_norm_sq(ABC) <= COLL_EPS * COLL_EPS)
+        return 1;
 
     if (vec3_dot(ABC, AO) > 0.0f) {
+        s->pts[0] = Cp;
+        s->pts[1] = Bp;
+        s->pts[2] = Ap;
+        s->count = 3;
         *dir = ABC;
     } else {
-        support_point tmp = s->pts[0];
-        s->pts[0] = s->pts[1];
-        s->pts[1] = tmp;
+        s->pts[0] = Bp;
+        s->pts[1] = Cp;
+        s->pts[2] = Ap;
+        s->count = 3;
         *dir = vec3_neg(ABC);
     }
+
     return 0;
 }
 
 static int do_simplex_tetra(simplex3 *s, vec3 *dir) {
     /* A newest = pts[3], B = pts[2], C = pts[1], D = pts[0] */
-    vec3 A = s->pts[3].p;
-    vec3 B = s->pts[2].p;
-    vec3 C = s->pts[1].p;
-    vec3 D = s->pts[0].p;
+    // printk("tetra\n");
+    support_point Ap = s->pts[3];
+    support_point Bp = s->pts[2];
+    support_point Cp = s->pts[1];
+    support_point Dp = s->pts[0];
+
+    vec3 A = Ap.p;
+    vec3 B = Bp.p;
+    vec3 C = Cp.p;
+    vec3 D = Dp.p;
 
     vec3 AO = vec3_neg(A);
 
@@ -297,35 +286,39 @@ static int do_simplex_tetra(simplex3 *s, vec3 *dir) {
     vec3 ACD = vec3_cross(AC, AD);
     vec3 ADB = vec3_cross(AD, AB);
 
+    /* orient outward */
+    if (vec3_dot(ABC, AD) > 0.0f) ABC = vec3_neg(ABC);
+    if (vec3_dot(ACD, AB) > 0.0f) ACD = vec3_neg(ACD);
+    if (vec3_dot(ADB, AC) > 0.0f) ADB = vec3_neg(ADB);
+
     if (vec3_dot(ABC, AO) > 0.0f) {
-        s->pts[0] = s->pts[1];
-        s->pts[1] = s->pts[2];
-        s->pts[2] = s->pts[3];
+        s->pts[0] = Cp;   // C
+        s->pts[1] = Bp;   // B
+        s->pts[2] = Ap;   // A
         s->count = 3;
         *dir = ABC;
         return 0;
     }
 
     if (vec3_dot(ACD, AO) > 0.0f) {
-        s->pts[1] = s->pts[3];
+        s->pts[0] = Dp;   // D
+        s->pts[1] = Cp;   // C
+        s->pts[2] = Ap;   // A
         s->count = 3;
         *dir = ACD;
         return 0;
     }
 
     if (vec3_dot(ADB, AO) > 0.0f) {
-        support_point oldD = s->pts[0];
-        support_point oldB = s->pts[2];
-        support_point oldA = s->pts[3];
-        s->pts[0] = oldD;
-        s->pts[1] = oldB;
-        s->pts[2] = oldA;
+        s->pts[0] = Bp;   // B
+        s->pts[1] = Dp;   // D
+        s->pts[2] = Ap;   // A
         s->count = 3;
         *dir = ADB;
         return 0;
     }
 
-    return 1; /* origin enclosed */
+    return 1;
 }
 
 static int do_simplex(simplex3 *s, vec3 *dir) {
@@ -353,6 +346,8 @@ gjk_result phys_gjk_intersect(const rigid_body *a, const rigid_body *b) {
     vec3 dir = vec3_sub(b->state.position, a->state.position);
     if (vec3_norm_sq(dir) < COLL_EPS) dir = (vec3){.x=1,.y=0,.z=0};
 
+    // printk("<%f, %f, %f>", dir.x, dir.y, dir.z);
+
     simplex3 s;
     memset(&s, 0, sizeof(s));
 
@@ -362,6 +357,7 @@ gjk_result phys_gjk_intersect(const rigid_body *a, const rigid_body *b) {
     dir = vec3_neg(first.p);
 
     for (int iter = 0; iter < GJK_MAX_ITERS; ++iter) {
+        // printk("%d\n", iter);
         if (vec3_norm_sq(dir) < COLL_EPS) {
             out.hit = 1;
             out.simplex = s;
@@ -371,21 +367,27 @@ gjk_result phys_gjk_intersect(const rigid_body *a, const rigid_body *b) {
         support_point p = support_minkowski(a, b, dir);
 
         if (simplex_has_duplicate(&s, p)) {
+            // printk("uh o!h");
             out.hit = 0;
             out.simplex = s;
             out.search_dir = dir;
             return out;
         }
 
-        if (vec3_dot(p.p, dir) < 0.0f) {
+        if (vec3_dot(p.p, dir) < COLL_EPS) {
             out.hit = 0;
             out.simplex = s;
             out.search_dir = dir;
             return out;
         }
 
+        if (s.count >= 4) {
+            out.hit = 0;
+            out.simplex = s;
+            out.search_dir = dir;
+            return out;
+        }
         s.pts[s.count++] = p;
-
         if (do_simplex(&s, &dir)) {
             out.hit = 1;
             out.simplex = s;
@@ -413,8 +415,14 @@ static void epa_make_face(epa_face *f, int a, int b, int c,
     vec3 C = verts[c].p;
 
     vec3 n = vec3_cross(vec3_sub(B, A), vec3_sub(C, A));
-    n = vec3_normalize(n);
-
+    float n2 = vec3_norm_sq(n);
+    if (n2 <= COLL_EPS * COLL_EPS) {
+        f->alive = 0;
+        f->normal = (vec3){.x=0,.y=0,.z=0};
+        f->dist = 0.0f;
+        return;
+    }
+    n = vec3_scale(n, 1.0f / sqrtf(n2));
 
     if (vec3_dot(n, A) < 0.0f) {
         int t = f->b;
@@ -424,7 +432,14 @@ static void epa_make_face(epa_face *f, int a, int b, int c,
         B = verts[f->b].p;
         C = verts[f->c].p;
         n = vec3_cross(vec3_sub(B, A), vec3_sub(C, A));
-        n = vec3_normalize(n);
+        n2 = vec3_norm_sq(n);
+        if (n2 <= COLL_EPS * COLL_EPS) {
+            f->alive = 0;
+            f->normal = (vec3){.x=0,.y=0,.z=0};
+            f->dist = 0.0f;
+            return;
+        }
+        n = vec3_scale(n, 1.0f / sqrtf(n2));
     }
 
     f->normal = n;
@@ -565,13 +580,13 @@ static int seed_epa_simplex(const rigid_body *a, const rigid_body *b,
         verts[2] = p2;
         verts[3] = p3;
 
-        for (int i = 0; i < 4; i++) {
-            printk("verts[%d].p = (%f, %f, %f)\n",
-                i,
-                verts[i].p.x,
-                verts[i].p.y,
-                verts[i].p.z);
-        }
+        // for (int i = 0; i < 4; i++) {
+        //     printk("verts[%d].p = (%f, %f, %f)\n",
+        //         i,
+        //         verts[i].p.x,
+        //         verts[i].p.y,
+        //         verts[i].p.z);
+        // }
 
         *vert_count = 4;
         return 1;
@@ -580,11 +595,58 @@ static int seed_epa_simplex(const rigid_body *a, const rigid_body *b,
     return 0;
 }
 
+static void barycentric_on_triangle(vec3 A, vec3 B, vec3 C, vec3 P,
+                                    float *wa, float *wb, float *wc) {
+    vec3 v0 = vec3_sub(B, A);
+    vec3 v1 = vec3_sub(C, A);
+    vec3 v2 = vec3_sub(P, A);
+
+    float d00 = vec3_dot(v0, v0);
+    float d01 = vec3_dot(v0, v1);
+    float d11 = vec3_dot(v1, v1);
+    float d20 = vec3_dot(v2, v0);
+    float d21 = vec3_dot(v2, v1);
+
+    float denom = d00 * d11 - d01 * d01;
+    if (fabsf(denom) <= COLL_EPS) {
+        *wa = 1.0f;
+        *wb = 0.0f;
+        *wc = 0.0f;
+        return;
+    }
+
+    *wb = (d11 * d20 - d01 * d21) / denom;
+    *wc = (d00 * d21 - d01 * d20) / denom;
+    *wa = 1.0f - *wb - *wc;
+}
+
+static void epa_fill_contact_result(epa_result *out,
+                                    const epa_face *face,
+                                    const support_point *verts) {
+    const support_point *sa = &verts[face->a];
+    const support_point *sb = &verts[face->b];
+    const support_point *sc = &verts[face->c];
+
+    /*
+     * Closest point on the face to the origin.
+     * For the converged EPA face, this lies approximately at
+     * normal * dist.
+     */
+    vec3 p_closest = vec3_scale(face->normal, face->dist);
+
+    float wa, wb, wc;
+    barycentric_on_triangle(sa->p, sb->p, sc->p, p_closest, &wa, &wb, &wc);
+
+    out->contact_a = vec3_lerp3(sa->supp_a, sb->supp_a, sc->supp_a, wa, wb, wc);
+    out->contact_b = vec3_lerp3(sa->supp_b, sb->supp_b, sc->supp_b, wa, wb, wc);
+    out->contact = vec3_scale(vec3_add(out->contact_a, out->contact_b), 0.5f);
+}
+
 epa_result phys_epa_from_gjk(const rigid_body *a, const rigid_body *b,
                              const simplex3 *gjk_simplex) {
     epa_result out;
     memset(&out, 0, sizeof(out));
-    printk("hello here\n");
+    // printk("hello here\n");
 
     support_point verts[EPA_MAX_FACES];
     int vert_count = 0;
@@ -620,10 +682,18 @@ epa_result phys_epa_from_gjk(const rigid_body *a, const rigid_body *b,
             }
         }
 
+        // if (duplicate || d <= face->dist + EPA_TOL) {
+        //     out.hit = 1;
+        //     out.normal = face->normal;
+        //     out.depth = face->dist;
+        //     return out;
+        // }
+
         if (duplicate || d <= face->dist + EPA_TOL) {
             out.hit = 1;
             out.normal = face->normal;
             out.depth = face->dist;
+            epa_fill_contact_result(&out, face, verts);
             return out;
         }
 
@@ -667,16 +737,43 @@ epa_result phys_epa_from_gjk(const rigid_body *a, const rigid_body *b,
 collision_result phys_collide_convex(const rigid_body *a, const rigid_body *b) {
     collision_result out;
     memset(&out, 0, sizeof(out));
+    // printk("hi next\n");
 
     aabb3 aa = phys_body_compute_aabb(a);
     aabb3 bb = phys_body_compute_aabb(b);
 
+    // printk("aa:\n");
+    // printk_float("  min.x", aa.min.x);
+    // printk_float("  min.y", aa.min.y);
+    // printk_float("  min.z", aa.min.z);
+    // printk_float("  max.x", aa.max.x);
+    // printk_float("  max.y", aa.max.y);
+    // printk_float("  max.z", aa.max.z);
+
+    // printk("bb:\n");
+    // printk_float("  min.x", bb.min.x);
+    // printk_float("  min.y", bb.min.y);
+    // printk_float("  min.z", bb.min.z);
+    // printk_float("  max.x", bb.max.x);
+    // printk_float("  max.y", bb.max.y);
+    // printk_float("  max.z", bb.max.z);
+
+    // printk("hi next 2\n");
+
+
+
     if (!phys_aabb_overlap(aa, bb))
         return out;
+
+    // printk("hi next 3\n");
+
+    // printk("hi next \n");
 
     out.gjk = phys_gjk_intersect(a, b);
     if (!out.gjk.hit)
         return out;
+
+    // printk("hit \n");
 
     /* GJK already proved overlap.  Never let EPA failure erase that. */
     out.hit = 1;

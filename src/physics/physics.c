@@ -32,92 +32,21 @@ static int phys_geom_set_mass_properties(rigid_body_geom *g, float mass, vec3 in
     return 0;
 }
 
-int phys_geom_init_sphere(rigid_body_geom *g, float radius, float mass) {
-    if (!g || radius <= 0.0f) return -1;
+int phys_geom_init(rigid_body_geom *g, mesh_geom mesh, float mass) {
+    vec3 inertia_body;
+
+    if (!g) return -1;
 
     memset(g, 0, sizeof(*g));
-
-    g->type = PHYS_SHAPE_SPHERE;
-    g->shape.sphere.radius = radius;
+    g->mesh = mesh;
 
     if (mass <= 0.0f) {
         return phys_geom_set_mass_properties(g, mass, vec3_zero());
     }
 
-    float Isphere = (2.0f / 5.0f) * mass * radius * radius;
-    vec3 inertia = {.x = Isphere, .y = Isphere, .z = Isphere };
+    inertia_body = mesh_compute_surface_inertia_body(&mesh, mass);
 
-    return phys_geom_set_mass_properties(g, mass, inertia);
-}
-
-int phys_geom_init_box(rigid_body_geom *g, float hx, float hy, float hz, float mass) {
-    if (!g || hx <= 0.0f || hy <= 0.0f || hz <= 0.0f) return -1;
-
-    memset(g, 0, sizeof(*g));
-
-    g->type = PHYS_SHAPE_BOX;
-    g->shape.box.hx = hx;
-    g->shape.box.hy = hy;
-    g->shape.box.hz = hz;
-
-    if (mass <= 0.0f) {
-        return phys_geom_set_mass_properties(g, mass, vec3_zero());
-    }
-
-    vec3 inertia = {
-        .x = (1.0f / 3.0f) * mass * (hy * hy + hz * hz),
-        .y = (1.0f / 3.0f) * mass * (hx * hx + hz * hz),
-        .z =(1.0f / 3.0f) * mass * (hx * hx + hy * hy)
-    };
-
-    return phys_geom_set_mass_properties(g, mass, inertia);
-}
-
-int phys_geom_init_capsule(rigid_body_geom *g, float radius, float half_height, float mass) {
-    if (!g || radius <= 0.0f || half_height < 0.0f) return -1;
-
-    memset(g, 0, sizeof(*g));
-
-    g->type = PHYS_SHAPE_CAPSULE;
-    g->shape.capsule.radius = radius;
-    g->shape.capsule.half_height = half_height;
-
-    if (mass <= 0.0f) {
-        return phys_geom_set_mass_properties(g, mass, vec3_zero());
-    }
-
-    /*
-     * Approximate capsule inertia using a solid cylinder whose half-height
-     * is (half_height + radius), i.e. total height = 2*(half_height + radius).
-     * This is simple and stable even if not exact.
-     */
-    float approx_half_height = half_height + radius;
-    float h = 2.0f * approx_half_height;
-
-    vec3 inertia = {
-        .x = (1.0f / 12.0f) * mass * (3.0f * radius * radius + h * h),
-        .y =(1.0f / 12.0f) * mass * (3.0f * radius * radius + h * h),
-        .z = 0.5f * mass * radius * radius
-    };
-
-    return phys_geom_set_mass_properties(g, mass, inertia);
-}
-
-int phys_geom_init_mesh(rigid_body_geom *g, triangle *tris, int tri_count, float mass,
-                        vec3 inertia_body) {
-    if (!g || !tris || tri_count <= 0) return -1;
-
-    memset(g, 0, sizeof(*g));
-
-    g->type = PHYS_SHAPE_MESH;
-    g->shape.mesh.triangles = tris;
-    g->shape.mesh.triangle_count = tri_count;
-
-    if (mass <= 0.0f) {
-        return phys_geom_set_mass_properties(g, mass, vec3_zero());
-    }
-
-    if (inertia_body.x < 0.0f || inertia_body.y < 0.0f || inertia_body.z < 0.0f)
+    if (inertia_body.x <= 0.0f || inertia_body.y <= 0.0f || inertia_body.z <= 0.0f)
         return -1;
 
     return phys_geom_set_mass_properties(g, mass, inertia_body);

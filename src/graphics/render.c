@@ -19,7 +19,7 @@ int render_rigid_body(const rigid_body *rb, const camera *cam,
                       int vert_offset,
                       uint16_t *vert_index_list,
                       nv_vertex_nch_nps_t *shaded_vertex_data_addr) {
-    mesh_geom mesh = rb->geom.shape.mesh;
+    mesh_geom mesh = rb->geom.mesh;
     quat q = rb->state.orientation;
     vec3 p = rb->state.position;
 
@@ -39,4 +39,45 @@ int render_rigid_body(const rigid_body *rb, const camera *cam,
     }
 
     return count;
+}
+
+void scene_clear(scene *s) {
+    if (!s) return;
+    s->num_rbds = 0;
+}
+
+int scene_add_rigid_body(scene *s, const rigid_body *rb) {
+    if (!s || !rb) return -1;
+    if (s->num_rbds >= MAX_RIGID_BODIES) return -1;
+
+    s->rbds[s->num_rbds] = *rb;
+    s->num_rbds++;
+    return 0;
+}
+
+int render_scene(const scene *s,
+                 const camera *cam,
+                 float zs,
+                 vec3 light_dir,
+                 uint16_t *vert_index_list,
+                 nv_vertex_nch_nps_t *shaded_vertex_data_addr) {
+    if (!s || !cam || !vert_index_list || !shaded_vertex_data_addr)
+        return -1;
+
+    int total_verts = 0;
+
+    for (int i = 0; i < s->num_rbds; i++) {
+        int written = render_rigid_body(&s->rbds[i],
+                                                 cam,
+                                                 light_dir, 1.0f, 0.0f, 0.0f,
+                                                 total_verts,
+                                                 vert_index_list,
+                                                 shaded_vertex_data_addr);
+        if (written < 0)
+            return -1;
+
+        total_verts += written;
+    }
+
+    return total_verts;
 }

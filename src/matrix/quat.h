@@ -32,12 +32,72 @@ static inline quat quat_scale(quat q, float s) {
     return r;
 }
 
-static inline float quat_dot(quat a, quat b) {
-    return a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z;
+static inline unsigned fbits(float x) {
+    union {
+        float f;
+        unsigned u;
+    } t;
+    t.f = x;
+    return t.u;
 }
 
+static inline int float_is_nan(float x) {
+    unsigned u = *(unsigned *)&x;
+    return ((u & 0x7f800000) == 0x7f800000) &&  // exponent all 1s
+           ((u & 0x007fffff) != 0);             // mantissa non-zero
+}
+
+static __attribute__((noinline)) float quat_dot(const quat *a, const quat *b) {
+    printk("QD0 a=%x b=%x\n", (unsigned)a, (unsigned)b);
+    volatile float sink1 = a->w;
+    printk("QD1\n");
+    volatile float sink2 = a->x;
+    printk("QD2\n");
+    volatile float sink3 = a->y;
+    printk("QD3\n");
+    volatile float sink4 = a->z;
+    printk("QD4\n");
+    return sink1 * b->w + sink2 * b->x + sink3 * b->y + sink4 * b->z;
+}
+// static inline float quat_dot(quat a, quat b) {
+//     float inta = a.w * b.w;
+//     float intb = a.x * b.x;
+//     float intc = a.y * b.y;
+
+//     // printk("D0\n");
+//     // printk("addr a.z = %x\n", (unsigned)&a.z);
+//     // printk("a=%x &a->z=%x offset=%d\n",
+//     //    (unsigned)&a,
+//     //    (unsigned)&a.z,
+//     //    (int)((char*)&a.z - (char*)&a));
+
+//     volatile float sink1, sink2, sink3, sink4;
+
+// printk("T0\n");
+// sink1 = a.w;
+// printk("T1\n");
+// sink2 = a.x;
+// printk("T2\n");
+// sink3 = a.y;
+// printk("T3\n");
+// sink4 = a.z;
+// printk("T4\n");
+
+// if ((sink1 || sink2 || sink3 || sink4) == 0){panic("foisd");}
+// float az = a.z;
+// // printk("az bits=%x\n", fbits(az));    // printk("D1 az=%f\n", az);
+
+//     float bz = b.z;
+//     // printk("D2 bz=%f\n", bz);
+
+//     float intd = az * bz;
+//     // printk("E intd=%f\n", intd);
+
+//     return inta + intb + intc + intd;
+// }
+
 static inline float quat_norm_sq(quat q) {
-    return quat_dot(q, q);
+    return quat_dot(&q, &q);
 }
 
 static inline float quat_norm(quat q) {

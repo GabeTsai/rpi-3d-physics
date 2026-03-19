@@ -28,6 +28,9 @@ typedef struct {
     int hit;              // 1 if penetration result valid
     vec3 normal;          // world-space collision normal, from A toward B
     float depth;          // penetration depth
+    vec3 contact_a;       // world-space contact point on A
+    vec3 contact_b;       // world-space contact point on B
+    vec3 contact; 
 } epa_result;
 
 typedef struct {
