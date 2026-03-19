@@ -1,5 +1,12 @@
 PROGS := test.c
 COMMON_SRC := ../physics/physics.c ../physics/collision.c ../geom/geom.c
+CFLAGS += -fno-omit-frame-pointer
+CFLAGS += -fno-optimize-sibling-calls
+CFLAGS += -fno-strict-aliasing
+CFLAGS += -fstack-usage
+CFLAGS += -Wstack-usage=1024
+CFLAGS += -fno-inline
+CFLAGS += -O0
 CFLAGS += -I../gpu
 CFLAGS += -I../geom
 CFLAGS += -I../matrix

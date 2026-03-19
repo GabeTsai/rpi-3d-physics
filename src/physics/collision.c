@@ -30,18 +30,6 @@ typedef struct {
 
 /* -------------------- small vec helpers -------------------- */
 
-static void printk_float(const char *name, float v) {
-    int sign = v < 0;
-    if(sign) v = -v;
-
-    int whole = (int)v;
-    int frac  = (int)((v - whole) * 1000);   // 3 decimal places
-
-    if(sign)
-        printk("%s = -%d.%d\n", name, whole, frac);
-    else
-        printk("%s = %d.%d\n", name, whole, frac);
-}
 
 /* -------------------- transforms -------------------- */
 
@@ -54,8 +42,41 @@ static vec3 inv_rotate_vec(const quat *q, vec3 v) {
     return quat_rotate_vec3(qc, v);
 }
 
+// static vec3 local_to_world_point(const rigid_body *b, vec3 p_local) {
+//     return vec3_add(rotate_vec(&b->state.orientation, p_local), b->state.position);
+// }
+
 static vec3 local_to_world_point(const rigid_body *b, vec3 p_local) {
-    return vec3_add(rotate_vec(&b->state.orientation, p_local), b->state.position);
+    // printk("LW0\n");
+    // printk("LW0a b=%x\n", (unsigned)b);
+
+    // printk_float("lw.pos.x", b->state.position.x);
+    // printk_float("lw.pos.y", b->state.position.y);
+    // printk_float("lw.pos.z", b->state.position.z);
+
+    // printk_float("lw.ori.w", b->state.orientation.w);
+    // printk_float("lw.ori.x", b->state.orientation.x);
+    // printk_float("lw.ori.y", b->state.orientation.y);
+    // printk_float("lw.ori.z", b->state.orientation.z);
+
+    // printk_float("lw.local.x", p_local.x);
+    // printk_float("lw.local.y", p_local.y);
+    // printk_float("lw.local.z", p_local.z);
+
+    // printk("LW1\n");
+    vec3 r = rotate_vec(&b->state.orientation, p_local);
+    // printk("LW2\n");
+    // printk_float("lw.rot.x", r.x);
+    // printk_float("lw.rot.y", r.y);
+    // printk_float("lw.rot.z", r.z);
+
+    vec3 out = vec3_add(r, b->state.position);
+    // printk("LW3\n");
+    // printk_float("lw.out.x", out.x);
+    // printk_float("lw.out.y", out.y);
+    // printk_float("lw.out.z", out.z);
+
+    return out;
 }
 
 /* -------------------- support mapping -------------------- */
@@ -101,37 +122,88 @@ static support_point support_minkowski(const rigid_body *a,
 }
 
 /* -------------------- AABB -------------------- */
-
 static void expand_aabb_point(aabb3 *a, vec3 p) {
+    // printk("EA0\n");
+    // printk_float("p.x", p.x);
+    // printk_float("p.y", p.y);
+    // printk_float("p.z", p.z);
+
+    // printk("EA1\n");
     a->min = vec3_min(a->min, p);
+    // printk("EA2\n");
     a->max = vec3_max(a->max, p);
+    // printk("EA3\n");
 }
+
+
 
 aabb3 phys_body_compute_aabb(const rigid_body *b) {
     aabb3 out;
+    // printk("AB0 enter\n");
+    // printk("AB0a b=%x\n", (unsigned)b);
+
     out.min.x = out.min.y = out.min.z = FLT_MAX;
     out.max.x = out.max.y = out.max.z = -FLT_MAX;
+    // printk("AB1 init\n");
 
     if (!b) {
+        // printk("AB2 null body\n");
         vec3 z = {.x = 0, .y = 0, .z = 0};
         out.min = z;
         out.max = z;
         return out;
     }
 
+    // printk_float("ab.pos.x", b->state.position.x);
+    // printk_float("ab.pos.y", b->state.position.y);
+    // printk_float("ab.pos.z", b->state.position.z);
+
+    // printk_float("ab.ori.w", b->state.orientation.w);
+    // printk_float("ab.ori.x", b->state.orientation.x);
+    // printk_float("ab.ori.y", b->state.orientation.y);
+    // printk_float("ab.ori.z", b->state.orientation.z);
+
     const mesh_geom *m = &b->geom.mesh;
+    // printk("AB3 mesh ptr=%x tris=%x tri_count=%d\n",
+    //        (unsigned)m, (unsigned)m->triangles, m->triangle_count);
 
     if (!m->triangles || m->triangle_count <= 0) {
+        // printk("AB4 degenerate mesh\n");
         out.min = b->state.position;
         out.max = b->state.position;
         return out;
     }
 
     for (int i = 0; i < m->triangle_count; ++i) {
+        // printk("AB5 tri i=%d\n", i);
+        // printk_float("t.v0.x", m->triangles[i].v0.x);
+        // printk_float("t.v0.y", m->triangles[i].v0.y);
+        // printk_float("t.v0.z", m->triangles[i].v0.z);
+
+        // printk_float("t.v1.x", m->triangles[i].v1.x);
+        // printk_float("t.v1.y", m->triangles[i].v1.y);
+        // printk_float("t.v1.z", m->triangles[i].v1.z);
+
+        // printk_float("t.v2.x", m->triangles[i].v2.x);
+        // printk_float("t.v2.y", m->triangles[i].v2.y);
+        // printk_float("t.v2.z", m->triangles[i].v2.z);
+
+        // printk("AB6 v0\n");
         expand_aabb_point(&out, local_to_world_point(b, m->triangles[i].v0));
+        // printk("AB7 v1\n");
         expand_aabb_point(&out, local_to_world_point(b, m->triangles[i].v1));
+        // printk("AB8 v2\n");
         expand_aabb_point(&out, local_to_world_point(b, m->triangles[i].v2));
+        // printk("AB9 tri done\n");
     }
+
+    // printk("AB10 done\n");
+    // printk_float("out.min.x", out.min.x);
+    // printk_float("out.min.y", out.min.y);
+    // printk_float("out.min.z", out.min.z);
+    // printk_float("out.max.x", out.max.x);
+    // printk_float("out.max.y", out.max.y);
+    // printk_float("out.max.z", out.max.z);
 
     return out;
 }
@@ -734,64 +806,81 @@ epa_result phys_epa_from_gjk(const rigid_body *a, const rigid_body *b,
 
 /* -------------------- full pipeline -------------------- */
 
+
 collision_result phys_collide_convex(const rigid_body *a, const rigid_body *b) {
     collision_result out;
     memset(&out, 0, sizeof(out));
-    // printk("hi next\n");
+
+    // printk("CC0 enter\n");
+    // printk("CC0a a=%x b=%x\n", (unsigned)a, (unsigned)b);
 
     aabb3 aa = phys_body_compute_aabb(a);
+    // printk("CC1 got aa\n");
+
     aabb3 bb = phys_body_compute_aabb(b);
+    // printk("CC2 got bb\n");
 
-    // printk("aa:\n");
-    // printk_float("  min.x", aa.min.x);
-    // printk_float("  min.y", aa.min.y);
-    // printk_float("  min.z", aa.min.z);
-    // printk_float("  max.x", aa.max.x);
-    // printk_float("  max.y", aa.max.y);
-    // printk_float("  max.z", aa.max.z);
+    // printk_float("aa.min.x", aa.min.x);
+    // printk_float("aa.min.y", aa.min.y);
+    // printk_float("aa.min.z", aa.min.z);
+    // printk_float("aa.max.x", aa.max.x);
+    // printk_float("aa.max.y", aa.max.y);
+    // printk_float("aa.max.z", aa.max.z);
 
-    // printk("bb:\n");
-    // printk_float("  min.x", bb.min.x);
-    // printk_float("  min.y", bb.min.y);
-    // printk_float("  min.z", bb.min.z);
-    // printk_float("  max.x", bb.max.x);
-    // printk_float("  max.y", bb.max.y);
-    // printk_float("  max.z", bb.max.z);
+    // printk_float("bb.min.x", bb.min.x);
+    // printk_float("bb.min.y", bb.min.y);
+    // printk_float("bb.min.z", bb.min.z);
+    // printk_float("bb.max.x", bb.max.x);
+    // printk_float("bb.max.y", bb.max.y);
+    // printk_float("bb.max.z", bb.max.z);
 
-    // printk("hi next 2\n");
+    // printk("CC3 before aabb overlap\n");
+    int overlap = phys_aabb_overlap(aa, bb);
+    // printk("CC4 overlap=%d\n", overlap);
 
-
-
-    if (!phys_aabb_overlap(aa, bb))
+    if (!overlap) {
+        // printk("CC5 return miss from aabb\n");
         return out;
+    }
 
-    // printk("hi next 3\n");
-
-    // printk("hi next \n");
-
+    // printk("CC6 before gjk\n");
     out.gjk = phys_gjk_intersect(a, b);
-    if (!out.gjk.hit)
+    // printk("CC7 after gjk\n");
+    // printk("CC7a gjk.hit=%d\n", out.gjk.hit);
+    // printk("CC7b gjk.simplex.count=%d\n", out.gjk.simplex.count);
+
+    if (!out.gjk.hit) {
+        // printk("CC8 return miss from gjk\n");
         return out;
+    }
 
-    // printk("hit \n");
+    // printk("CC9 gjk says hit\n");
 
-    /* GJK already proved overlap.  Never let EPA failure erase that. */
     out.hit = 1;
+    // printk("CC10 out.hit set\n");
 
-    /*
-     * EPA needs a tetrahedron (4-point simplex) enclosing the origin.
-     * Your current GJK can report hit earlier from degenerate line/triangle
-     * cases, so only run EPA when the simplex is big enough.
-     */
-    // if (out.gjk.simplex.count < 4) {
-    //     return out;
-    // }
-
+    // printk("CC11 before epa\n");
     out.epa = phys_epa_from_gjk(a, b, &out.gjk.simplex);
+    // printk("CC12 after epa\n");
 
-    /*
-     * Keep overlap=true even if EPA fails to converge or returns empty.
-     * EPA only refines penetration normal/depth.
-     */
+    // printk("CC12a epa.hit=%d\n", out.epa.hit);
+    // printk_float("epa.depth", out.epa.depth);
+    // printk_float("epa.normal.x", out.epa.normal.x);
+    // printk_float("epa.normal.y", out.epa.normal.y);
+    // printk_float("epa.normal.z", out.epa.normal.z);
+
+    // printk_float("epa.contact_a.x", out.epa.contact_a.x);
+    // printk_float("epa.contact_a.y", out.epa.contact_a.y);
+    // printk_float("epa.contact_a.z", out.epa.contact_a.z);
+
+    // printk_float("epa.contact_b.x", out.epa.contact_b.x);
+    // printk_float("epa.contact_b.y", out.epa.contact_b.y);
+    // printk_float("epa.contact_b.z", out.epa.contact_b.z);
+
+    // printk_float("epa.contact.x", out.epa.contact.x);
+    // printk_float("epa.contact.y", out.epa.contact.y);
+    // printk_float("epa.contact.z", out.epa.contact.z);
+
+    // printk("CC13 return hit\n");
     return out;
 }

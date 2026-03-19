@@ -13,6 +13,7 @@ static vec3 phys_safe_inv_vec3(vec3 v) {
     return out;
 }
 
+
 static int phys_geom_set_mass_properties(rigid_body_geom *g, float mass, vec3 inertia_body) {
     if (!g) return -1;
 
@@ -28,7 +29,24 @@ static int phys_geom_set_mass_properties(rigid_body_geom *g, float mass, vec3 in
     g->inv_mass = 1.0f / mass;
     g->inertia_body = inertia_body;
     g->inv_inertia_body = phys_safe_inv_vec3(inertia_body);
+    
+printk_float("+inf", 1.0f / 0.0f);
+printk_float("-inf", -1.0f / 0.0f);
+printk_float("float max", 3.4028235e38f);
+printk_float("val", g->inertia_body.x);
+printk_float("val", g->inv_inertia_body.x);
+printk_float("val", sqrtf(g->inv_inertia_body.x));
+    // printk_float("inertia_body = (%f, %f, %f)\n",
+    //    g->inertia_body.x,
+    //    g->inertia_body.y,
+    //    g->inertia_body.z);
 
+    // printk_float("inv_inertia_body = (%f, %f, %f)\n",
+    //    g->inv_inertia_body.x,
+    //    g->inv_inertia_body.y,
+    //    g->inv_inertia_body.z);
+
+    // delay_ms(1000);
     return 0;
 }
 

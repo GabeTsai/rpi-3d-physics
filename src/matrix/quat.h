@@ -48,15 +48,15 @@ static inline int float_is_nan(float x) {
 }
 
 static __attribute__((noinline)) float quat_dot(const quat *a, const quat *b) {
-    printk("QD0 a=%x b=%x\n", (unsigned)a, (unsigned)b);
+    // printk("QD0 a=%x b=%x\n", (unsigned)a, (unsigned)b);
     volatile float sink1 = a->w;
-    printk("QD1\n");
+    // printk("QD1\n");
     volatile float sink2 = a->x;
-    printk("QD2\n");
+    // printk("QD2\n");
     volatile float sink3 = a->y;
-    printk("QD3\n");
+    // printk("QD3\n");
     volatile float sink4 = a->z;
-    printk("QD4\n");
+    // printk("QD4\n");
     return sink1 * b->w + sink2 * b->x + sink3 * b->y + sink4 * b->z;
 }
 // static inline float quat_dot(quat a, quat b) {
@@ -97,15 +97,104 @@ static __attribute__((noinline)) float quat_dot(const quat *a, const quat *b) {
 // }
 
 static inline float quat_norm_sq(quat q) {
+    // printk("quat_norm_sq\n");
     return quat_dot(&q, &q);
 }
 
+static void printk_float(const char *name, float v) {
+    unsigned u = *(unsigned *)&v;
+    unsigned absu = u & 0x7fffffff;
+    int sign = (u >> 31) & 1;
+
+    // NaN / Inf
+    if ((absu & 0x7f800000) == 0x7f800000) {
+        if (absu & 0x007fffff)
+            printk("%s = NaN (0x%x)\n", name, u);
+        else
+            printk("%s = %sINF\n", name, sign ? "-" : "+");
+        return;
+    }
+
+    // Zero
+    if (absu == 0) {
+        printk("%s = %s0.000000e+00\n", name, sign ? "-" : "");
+        return;
+    }
+
+    if (sign) v = -v;
+
+    int exp10 = 0;
+
+    while (v >= 10.0f) {
+        v *= 0.1f;
+        exp10++;
+    }
+    while (v < 1.0f) {
+        v *= 10.0f;
+        exp10--;
+    }
+
+    int whole = (int)v;   // safe: now 1..9
+    float frac = v - (float)whole;
+
+    printk("%s = ", name);
+    if (sign) printk("-");
+    printk("%d.", whole);
+
+    // 6 fractional digits, no integer div/mod
+    for (int i = 0; i < 6; i++) {
+        frac *= 10.0f;
+        int d = (int)frac;      // 0..9
+        printk("%d", d);
+        frac -= (float)d;
+        if (frac < 0.0f) frac = 0.0f;
+    }
+
+    printk("e");
+    if (exp10 >= 0) printk("+");
+    else {
+        printk("-");
+        exp10 = -exp10;
+    }
+
+    // print exponent without / or %
+    if (exp10 >= 100) {
+        int hundreds = 0;
+        while (exp10 >= 100) {
+            exp10 -= 100;
+            hundreds++;
+        }
+
+        int tens = 0;
+        while (exp10 >= 10) {
+            exp10 -= 10;
+            tens++;
+        }
+
+        printk("%d%d%d\n", hundreds, tens, exp10);
+    } else {
+        int tens = 0;
+        while (exp10 >= 10) {
+            exp10 -= 10;
+            tens++;
+        }
+        printk("%d%d\n", tens, exp10);
+    }
+}
+
+
 static inline float quat_norm(quat q) {
-    return sqrtf(quat_norm_sq(q));
+    // printk("quat_norm\n");
+    float norm_sq = quat_norm_sq(q);
+    // printk_float("norm_sq", norm_sq);
+    if (norm_sq <= 1e-2f) return 0.0f;
+    return sqrtf(norm_sq);
 }
 
 static inline quat quat_normalize(quat q) {
+    // printk("a\n");
     float n = quat_norm(q);
+    // printk("b\n");
     if (n <= 1e-8f) return quat_identity();
     return quat_scale(q, 1.0f / n);
 }
@@ -126,10 +215,35 @@ static inline quat quat_mul(quat a, quat b) {
 }
 
 static inline vec3 quat_rotate_vec3(quat q, vec3 v) {
+    // printk("QR0\n");
+    // printk_float("qr.q.w", q.w);
+    // printk_float("qr.q.x", q.x);
+    // printk_float("qr.q.y", q.y);
+    // printk_float("qr.q.z", q.z);
+
+    // printk_float("qr.v.x", v.x);
+    // printk_float("qr.v.y", v.y);
+    // printk_float("qr.v.z", v.z);
+
     quat p = {0.0f, v.x, v.y, v.z};
-    quat qn = quat_normalize(q);
-    quat r = quat_mul(quat_mul(qn, p), quat_conjugate(qn));
+    // printk("QR1\n");
+
+    quat qc = quat_conjugate(q);
+    // printk("QR2\n");
+
+    quat t = quat_mul(q, p);
+    // printk("QR3\n");
+
+    quat r = quat_mul(t, qc);
+    // printk("QR4\n");
+
     vec3 out = {.x = r.x, .y = r.y, .z = r.z};
+    // printk("QR5\n");
+
+    // printk_float("qr.out.x", out.x);
+    // printk_float("qr.out.y", out.y);
+    // printk_float("qr.out.z", out.z);
+
     return out;
 }
 

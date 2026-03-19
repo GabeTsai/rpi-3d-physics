@@ -88,7 +88,7 @@ void notmain(void) {
     phys_body_init(&rbs[0], &geom1, vec3_make(100.0f, -50.0f, 0.0f), quat_identity());
 
     rbs[0].state.linear_velocity = (vec3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
-    rbs[0].state.angular_velocity = (vec3){ .x = 0.2f, .y = 0.0f, .z = 0.0f };
+    rbs[0].state.angular_velocity = (vec3){ .x = 0.1f, .y = 1.0f, .z = 0.0f };
 
     rbs[2].state.linear_velocity = (vec3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
     rbs[2].state.angular_velocity = (vec3){ .x = 4.0f, .y = 2.0f, .z = 3.0f };//{ .x = -2.0f, .y = -0.5f, .z = 0.0f };
@@ -121,31 +121,34 @@ void notmain(void) {
 
     while (1) {
         float dt = 20.0f * 0.001f;
-        // printk("f");
+        printk("ff\n");
 
 
         phys_body_integrate(&rbs[0], dt);
-        // printk("g");
+        printk("gg\n");
         phys_body_integrate(&rbs[1], dt);
-        // printk("h");
+        printk("hh\n");
         phys_body_integrate(&rbs[2], dt);
-        // printk("i");
+        printk("ii\n");
 
-        // printk("here");
+        printk("here\n");
 
         collision_result res = phys_collide_convex(&rbs[0], &rbs[1]);
+            printk("here1.5\n");
         if (res.hit) {
+                    printk("hit!\n");
+
             phys_resolve_collision_basic(&rbs[0], &rbs[1], &res);
         }
 
-        // printk("here2");
+        printk("here2\n");
 
 
         scene_clear(&sc);
         scene_add_rigid_body(&sc, &rbs[0]);
         scene_add_rigid_body(&sc, &rbs[1]);
         scene_add_rigid_body(&sc, &rbs[2]);
-        // printk("here3");
+        printk("here3\n");
 
         total_verts = render_scene(&sc,
                                    &cam,

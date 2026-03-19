@@ -3,6 +3,9 @@
 #include "quat.h"
 #include "collision.h"
 
+static unsigned canary1 = 0x11111111;
+static unsigned canary2 = 0x22222222;
+
 static vec3 phys_compute_linear_acceleration(const rigid_body *b) {
     return vec3_scale(b->force, b->geom.inv_mass);
 }
@@ -42,21 +45,20 @@ int phys_body_add_torque(rigid_body *b, vec3 t) {
     return 0;
 }
 
+// static inline int float_is_nan(float x) {
+//     unsigned u = *(unsigned *)&x;
+//     return ((u & 0x7f800000) == 0x7f800000) &&  // exponent all 1s
+//            ((u & 0x007fffff) != 0);             // mantissa non-zero
+// }
+
 int phys_body_integrate(rigid_body *b, float dt) {
+    volatile unsigned canary_a = 0x11111111;
+    volatile unsigned canary_b = 0x22222222;
+
     if (!b || dt <= 0.0f) return -1;
 
     b->state.linear_acceleration = phys_compute_linear_acceleration(b);
     b->state.angular_acceleration = phys_compute_angular_acceleration(b);
-
-printk("lin vel = (%f, %f, %f)\n",
-    b->state.linear_velocity.x,
-    b->state.linear_velocity.y,
-    b->state.linear_velocity.z);
-
-    printk("ang vel = (%f, %f, %f)\n",
-    b->state.angular_velocity.x,
-    b->state.angular_velocity.y,
-    b->state.angular_velocity.z);
 
     b->state.linear_velocity =
         vec3_add(b->state.linear_velocity,
@@ -69,32 +71,99 @@ printk("lin vel = (%f, %f, %f)\n",
     b->state.position =
         vec3_add(b->state.position,
                  vec3_scale(b->state.linear_velocity, dt));
-    printk("hi\n");
+
+    // printk("I0\n");
     quat omega = quat_from_angular_velocity(b->state.angular_velocity);
-    quat qdot = quat_scale(quat_mul(omega, b->state.orientation), 0.5f);
-    printk("hi2\n");
+    // printk("I1\n");
+    quat qdot  = quat_scale(quat_mul(omega, b->state.orientation), 0.5f);
+    // printk("I2\n");
 
-quat temp = b->state.orientation;
-quat delta = quat_scale(qdot, dt);
-quat sum = quat_add(temp, delta);
+    volatile unsigned canary_c = 0x33333333;
+    volatile unsigned canary_d = 0x44444444;
 
-printk("temp=(%f,%f,%f,%f)\n", temp.w, temp.x, temp.y, temp.z);
-printk("qdot=(%f,%f,%f,%f)\n", qdot.w, qdot.x, qdot.y, qdot.z);
-printk("dt=%f\n", dt);
-printk("sum=(%f,%f,%f,%f)\n", sum.w, sum.x, sum.y, sum.z);
+    quat temp  = b->state.orientation;
+    // printk("I3\n");
+    quat delta = quat_scale(qdot, dt);
+    // printk("I4\n");
+    quat sum   = quat_add(temp, delta);
+    // printk("I5\n");
 
-float nsq = quat_norm_sq(sum);
-printk("nsq=%f\n", nsq);
+    if (canary_a != 0x11111111) panic("stack smash a");
+    if (canary_b != 0x22222222) panic("stack smash b");
+    if (canary_c != 0x33333333) panic("stack smash c");
+    if (canary_d != 0x44444444) panic("stack smash d");
 
-float n = sqrtf(nsq);
-printk("n=%f\n", n);
+    // printk_float("sum.w", sum.w);
+    // printk_float("sum.x", sum.x);
+    // printk_float("sum.y", sum.y);
+    // printk_float("sum.z", sum.z);
 
-quat res = quat_normalize(sum);
-printk("res=(%f,%f,%f,%f)\n", res.w, res.x, res.y, res.z);
+    // printk("N0\n");
+    volatile float w = sum.w;
+    // printk("N1\n");
+    volatile float x = sum.x;
+    // printk("N2\n");
+    volatile float y = sum.y;
+    // printk("N3\n");
+    volatile float z = sum.z;
+    // printk("N4\n");
 
-b->state.orientation = res;
-printk("hi3\n");
-        
+    volatile float ww = w * w;
+    // printk("N5\n");
+    volatile float xx = x * x;
+    volatile float yed = sum.y;
+    if (yed < 1e-20f && yed> -1e-20f) yed = 0.0f;
+    // printk("N6\n");
+    volatile float yy = yed * yed;
+    // printk("N7\n");
+    volatile float zz = z * z;
+    // printk("N8\n");
+
+    volatile float s1 = ww + xx;
+    // printk("N9\n");
+    volatile float s2 = yy + zz;
+    // printk("N10\n");
+    volatile float nsq = s1 + s2;
+    // printk("N11\n");
+    // printk_float("nsq", nsq);
+
+    if (canary_a != 0x11111111) panic("stack smash a2");
+    if (canary_b != 0x22222222) panic("stack smash b2");
+    if (canary_c != 0x33333333) panic("stack smash c2");
+    if (canary_d != 0x44444444) panic("stack smash d2");
+
+    if (nsq <= 1e-20f) {
+        printk("N12 fallback\n");
+        b->state.orientation = (quat){1.0f, 0.0f, 0.0f, 0.0f};
+        return 0;
+    }
+
+    // printk("N13\n");
+    volatile float root = sqrtf(nsq);
+    // printk("N14\n");
+    // printk_float("root", root);
+
+    volatile float invn = 1.0f / root;
+    // printk("N15\n");
+    // printk_float("invn", invn);
+
+    quat res;
+    res.w = w * invn;
+    // printk("N16\n");
+    res.x = x * invn;
+    // printk("N17\n");
+    res.y = y * invn;
+    // printk("N18\n");
+    res.z = z * invn;
+    // printk("N19\n");
+
+    printk_float("res.w", res.w);
+    printk_float("res.x", res.x);
+    printk_float("res.y", res.y);
+    printk_float("res.z", res.z);
+
+    b->state.orientation = res;
+    printk("N20\n");
     return 0;
 }
 
