@@ -45,7 +45,7 @@ nv_vertex_nch_nps_t make_nv_vertex_nch_nps(float xs, float ys, float zs, float i
 void put_triangle_to_nv(triangle tri, int idx_in_mesh, uint16_t *vert_index_list, nv_vertex_nch_nps_t *shaded_vertex_data_addr, float r, float g, float b);
 void put_mesh_geom_to_nv(mesh_geom mesh, uint16_t *vert_index_list, nv_vertex_nch_nps_t *shaded_vertex_data_addr);
 
-void put_proj_tri_to_nv(float xs[3], float ys[3], float zs,
+void put_proj_tri_to_nv(float xs[3], float ys[3], float zs[3],
     float r, float g, float b,
     int base_idx,
     uint16_t *vert_index_list,

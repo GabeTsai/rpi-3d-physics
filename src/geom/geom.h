@@ -6,6 +6,9 @@
 #include "quat.h"
 
 #define NUM_TRIANGLES_PER_BOX 12
+#define NUM_TRIANGLES_PER_ICOSPHERE 20
+
+#define NUM_TRIANGLES_PER_SPHERE(subdivisions) (NUM_TRIANGLES_PER_ICOSPHERE * (int)powf(4, subdivisions))
 
 typedef struct {
     vec3 v0, v1, v2;

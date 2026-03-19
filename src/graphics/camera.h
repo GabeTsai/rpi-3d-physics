@@ -14,10 +14,15 @@ typedef struct {
 
     float cx;
     float cy;
+
+    float znear;
+    float zfar;
 } camera;
 
 /* initialize camera */
-static inline void camera_init(camera *c, vec3 position, quat rotation, float fx, float fy, float cx, float cy) {
+static inline void camera_init(camera *c, vec3 position, quat rotation,
+                               float fx, float fy, float cx, float cy,
+                               float znear, float zfar) {    
     c->position = position;
     c->rotation = rotation;
 
@@ -25,6 +30,9 @@ static inline void camera_init(camera *c, vec3 position, quat rotation, float fx
     c->fy = fy;
     c->cx = cx;
     c->cy = cy;
+
+    c->znear = znear;
+    c->zfar = zfar;
 }
 
 static inline vec3 camera_world_to_camera(const camera *cam, vec3 p_world) {
@@ -35,19 +43,18 @@ static inline vec3 camera_world_to_camera(const camera *cam, vec3 p_world) {
 
 static inline int camera_project_point(const camera *cam,
                                        vec3 world_point,
-                                       float *px, float *py)
+                                       float *px, float *py, float *pz)
 {
     vec3 rel = vec3_sub(world_point, cam->position);
     vec3 p_cam = quat_rotate_vec3(quat_conjugate(cam->rotation), rel);
 
-    if(p_cam.z <= 0.0f)
+    float z = p_cam.z;
+    if (z <= cam->znear || z >= cam->zfar)
         return 0;
-    // printk("%f, %f, %f\n", world_point.x, world_point.y, world_point.z);
-    // printk("%f, %f, %f\n", p_cam.x, p_cam.y, p_cam.z);
-    // printk("%f, %f, %f, %f\n", cam->fx, cam->fy, cam->cx, cam->cy);
-
-    *px = cam->fx * (p_cam.x / p_cam.z) + cam->cx;
-    *py = cam->cy - cam->fy * (p_cam.y / p_cam.z);
+    
+    *px = cam->fx * (p_cam.x / z) + cam->cx;
+    *py = cam->cy - cam->fy * (p_cam.y / z);
+    *pz = (z - cam->znear) / (cam->zfar - cam->znear);
     // printk("%f, %f\n", *px, *py);
 
     return 1;

@@ -26,9 +26,9 @@ void notmain(void) {
     
     camera cam;
     camera_init(&cam,
-        vec3_make(0.0f, 0.0f, -1000.0f),      // offset above and to the side
+        vec3_make(0.0f, 0.0f, -400.0f),      // offset above and to the side
         quat_from_euler(0.0f, 0.0f, 0.0f),    // tilt down, rotate left to face origin
-        640.0f, 640.0f,
+        900.0f, 900.0f,
         0.0f, 0.0f, 
         1.0f, 5000.0f);     
     render_state_t render_state = {
@@ -48,32 +48,32 @@ void notmain(void) {
     uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
     
     uint16_t total_verts = 0;
-    int num_bodies = 20;
-    int cube_size = 20;
-    int spacing = (p_width - num_bodies * 2 * cube_size) / (num_bodies - 1);
+    int num_bodies = 10;
+    int radius = 20;
+    int subdivisions = 3;
 
     rigid_body rbs[num_bodies];
     vec3 light_dir = vec3_make(0.0f, 0.0f, -1.0f);
 
-    int total_vertices = NUM_TRIANGLES_PER_BOX * num_bodies * 3;
+    int total_vertices = NUM_TRIANGLES_PER_SPHERE(subdivisions) * num_bodies * 3;
+    output("total_vertices: %d\n", total_vertices);
     nv_vertex_nch_nps_t *shaded_vertex_data_addr =
         (nv_vertex_nch_nps_t *) kmalloc_aligned(total_vertices * sizeof(nv_vertex_nch_nps_t), 16);
     uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
 
     uint16_t *indices = kmalloc_aligned(total_vertices * sizeof(uint16_t), 4);
-    int start_x = -p_width / 2 + cube_size;
 
     for (int i = 0; i < num_bodies; i++) { 
         rigid_body_geom geom; 
         // initialize physical properties - dimension, mass
-        phys_geom_init_box(&geom, cube_size, cube_size, cube_size, 1.0f);
+        phys_geom_init_sphere(&geom, radius, 1.0f);
         // create the actual mesh geometry and give it a color, store in mesh_geom
-        mesh_geom mesh = mesh_geom_init_box(geom.shape.box.hx, geom.shape.box.hy, geom.shape.box.hz, 1.0f, 0.0f, 0.0f);
+        mesh_geom mesh = mesh_geom_init_icosphere(geom.shape.sphere.radius, subdivisions, 1.0f, 0.0f, 0.0f);
         geom.shape.mesh = mesh;
         // initialize the rigid body with the geometry and position
-        phys_body_init(&rbs[0], &geom, vec3_make(start_x + i * (2 * cube_size + spacing), 0.0f, 0.0f), quat_identity());
+        phys_body_init(&rbs[i], &geom, vec3_make(i * 2 * radius - 200, 0.0f, 0.0f), quat_identity());
         // put the rigid body to the nv pipeline
-        total_verts += render_rigid_body(&rbs[0], &cam, light_dir, 1.0f, 0.0f, 0.0f, total_verts, indices, shaded_vertex_data_addr);
+        total_verts += render_rigid_body(&rbs[i], &cam, light_dir, 1.0f, 0.0f, 0.0f, total_verts, indices, shaded_vertex_data_addr);
     }
 
     output("total_verts: %d\n", total_verts);
