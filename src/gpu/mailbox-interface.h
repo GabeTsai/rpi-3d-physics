@@ -1,11 +1,18 @@
 #ifndef MAILBOX_INTERFACE_H
 #define MAILBOX_INTERFACE_H
 
+#include "rpi.h"
 #include "mailbox.h"
-#include <stdbool.h>
+#include "stdbool.h"
 
 #define FB_MSG_NWORDS 22
 #define BYTES_PER_PIXEL 4
+
+#define AUX_MU_CNTL_REG 0x20215000 + 0x60
+#define AUX_MU_BAUD_REG 0x20215000 + 0x68
+#define AUX_MU_LSR_REG 0x20215000 + 0x54
+#define GPIO_LEV0 0x20200000 + 0x34
+#define UART_BAUD_RATE 115200
 
 typedef struct { 
     uint32_t val1;
@@ -161,6 +168,39 @@ uint32_t RPI_get_model(void);
 uint32_t RPI_get_memsize(void);
 uint32_t RPI_get_revision(void);
 uint32_t RPI_get_temp(void);
+
+uint32_t RPI_clock_get_curhz(MailboxClock clock);
+uint32_t RPI_clock_get_realhz(MailboxClock clock);
+uint32_t RPI_set_clock_hz(MailboxClock clock, uint32_t hz);
+uint32_t RPI_clock_get_maxhz(MailboxClock clock);
+uint32_t RPI_clock_get_minhz(MailboxClock clock);
+
+static inline void set_uart_baud(uint32_t baud, uint32_t clock_rate) {
+    dev_barrier();
+    const uint32_t reg_value = (clock_rate / (8 * baud)) - 1;
+    PUT32(AUX_MU_CNTL_REG, 0);
+    PUT32(AUX_MU_BAUD_REG, reg_value);
+    PUT32(AUX_MU_CNTL_REG, 0b11);
+    dev_barrier();
+}
+
+static inline int uart_tx_empty(void) { 
+    dev_barrier();
+    int res = (GET32(AUX_MU_LSR_REG) & (0b1000000)) != 0;
+    dev_barrier();
+    return res;
+}
+
+static inline void flush_uart_tx(void) { 
+    while(!uart_tx_empty()){}
+}
+
+static inline void set_clock_hz(MailboxClock clock, uint32_t hz) {
+    dev_barrier();
+    RPI_set_clock_hz(clock, hz);
+    set_uart_baud(UART_BAUD_RATE, RPI_clock_get_curhz(clock));
+    dev_barrier();
+}
 
 mbox_response_t RPI_fb_allocate(uint32_t alignment);
 mbox_response_t RPI_fb_blank_screen(uint32_t state);

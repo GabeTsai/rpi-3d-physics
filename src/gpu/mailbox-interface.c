@@ -103,6 +103,116 @@ uint32_t RPI_get_temp(void) {
     return msg[6];
 }
 
+uint32_t RPI_clock_get_curhz(MailboxClock clock) { 
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_GET_CLOCK_RATE,
+        8, // 8 byte response
+        MBOX_REQUEST,
+        clock,
+        0,
+        0
+    };
+
+    dev_barrier();
+    int res = mbox_get_property(msg);
+    dev_barrier();
+
+    if (!res) {
+        panic("failed to get clock rate \n");
+    } 
+    return msg[6];
+}
+
+uint32_t RPI_clock_get_realhz(MailboxClock clock) { 
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_GET_CLOCK_RATE_MEASURED,
+        8, // 8 byte response
+        MBOX_REQUEST,
+        clock,
+        0,
+        0
+    };
+
+    dev_barrier();
+    int res = mbox_get_property(msg);
+    dev_barrier();
+
+    if (!res) {
+        panic("failed to get clock rate \n");
+    } 
+    return msg[6];
+}
+
+uint32_t RPI_set_clock_hz(MailboxClock clock, uint32_t hz) { 
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_SET_CLOCK_RATE,
+        2 * sizeof(uint32_t), // clock_id, rate, skip_turbo
+        MBOX_REQUEST,  // request code
+        clock,
+        hz,
+        0,  
+    };
+
+    dev_barrier();
+    int res = mbox_get_property(msg);
+    dev_barrier();
+
+    if (!res) {
+        panic("failed to set clock rate \n");
+    } 
+    return msg[6];
+}
+
+uint32_t RPI_clock_get_maxhz(MailboxClock clock) { 
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_GET_MAX_CLOCK_RATE,
+        8, // 8 byte response
+        MBOX_REQUEST,
+        clock,
+        0,
+        0
+    };
+
+    dev_barrier();
+    int res = mbox_get_property(msg);
+    dev_barrier();
+
+    if (!res) {
+        panic("failed to get max clock rate \n");
+    } 
+    return msg[6];
+}
+
+uint32_t RPI_clock_get_minhz(MailboxClock clock) { 
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_GET_MIN_CLOCK_RATE,
+        8, // 8 byte response
+        MBOX_REQUEST,
+        clock,
+        0,
+        0
+    };
+
+    dev_barrier();
+    int res = mbox_get_property(msg);
+    dev_barrier();
+
+    if (!res) {
+        panic("failed to get max clock rate \n");
+    } 
+    return msg[6];
+}
+
 /*
 Allocate buffer
 
