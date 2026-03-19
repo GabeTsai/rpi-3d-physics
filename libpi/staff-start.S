@@ -19,6 +19,15 @@ _start:
     mov r0,#0x40000000
     fmxr fpexc,r0
 
+    @ page 22-17
+    @ RunFast mode is a combination of flush-to-zero-mode (FPSCR bit 24) - 18-12
+    @ and use default NaN mode (FPSCR bit 25) - 18-12
+    @ Otherwise, VFPv2 bounces denormal inputs to an undefined-instruction handler
+    fmrx  r0, fpscr
+    orr   r0, r0, #(1 << 24)
+    orr   r0, r0, #(1 << 25)
+    fmxr  fpscr, r0
+
 #endif
 
     @ force the mode to be SUPER.

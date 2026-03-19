@@ -1,331 +1,223 @@
-
 #include "vec3.h"
 #include "quat.h"
 #include "collision.h"
 
-static unsigned canary1 = 0x11111111;
-static unsigned canary2 = 0x22222222;
+#include "rpi.h"
+#include "rpi-math.h"
+#include "string.h"
 
-static vec3 phys_compute_linear_acceleration(const rigid_body *b) {
-    return vec3_scale(b->force, b->geom.inv_mass);
+#ifndef isfinite
+#define isfinite(x) ((x) - (x) == 0.0f)
+#endif
+
+#define DYN_MAX_AV  50.0f
+#define DYN_MAX_DT  0.1f
+
+/* zero vector if any component is non-finite */
+static inline vec3 dyn_fv3(vec3 v) {
+    if (!isfinite(v.x) || !isfinite(v.y) || !isfinite(v.z))
+        return vec3_zero();
+    return v;
 }
 
-static vec3 phys_apply_inv_inertia_world(const rigid_body *b, vec3 v_world) {
-    quat q = b->state.orientation;
+/* normalize quaternion; return identity on degenerate input.
+ * noinline + volatile reads: same workaround as quat_dot — the ARM VFP
+ * compiler can emit VLDMD (8-byte-aligned double loads) for a quat struct,
+ * which data-aborts when the stack slot is only 4-byte aligned.
+ * Forcing a real call boundary (noinline) makes the ABI pass the four
+ * floats in s0-s3, and volatile reads inside force individual VLDR. */
+static __attribute__((noinline)) quat dyn_fqn(quat q) {
+    volatile float qw = q.w, qx = q.x, qy = q.y, qz = q.z;
+    float n2 = qw*qw + qx*qx + qy*qy + qz*qz;
+    if (!isfinite(n2) || n2 < 1e-12f)
+        return (quat){1.0f, 0.0f, 0.0f, 0.0f};
+    float inv = 1.0f / sqrtf(n2);
+    quat r = {qw*inv, qx*inv, qy*inv, qz*inv};
+    if (!isfinite(r.w) || !isfinite(r.x) || !isfinite(r.y) || !isfinite(r.z))
+        return (quat){1.0f, 0.0f, 0.0f, 0.0f};
+    return r;
+}
+
+/* clamp angular velocity to DYN_MAX_AV; zero non-finite */
+static inline vec3 dyn_clav(vec3 av) {
+    if (!isfinite(av.x) || !isfinite(av.y) || !isfinite(av.z))
+        return vec3_zero();
+    float sq = av.x*av.x + av.y*av.y + av.z*av.z;
+    if (sq > DYN_MAX_AV * DYN_MAX_AV) {
+        float s = DYN_MAX_AV / sqrtf(sq);
+        av.x *= s; av.y *= s; av.z *= s;
+    }
+    return av;
+}
+
+/* apply inverse inertia tensor in world space: R * I_b^{-1} * R^T * v */
+static inline vec3 dyn_iIw(const rigid_body *b, vec3 v) {
+    quat q  = dyn_fqn(b->state.orientation);
     quat qc = quat_conjugate(q);
-
-    vec3 v_body = quat_rotate_vec3(qc, v_world);
-    vec3 out_body = vec3_hadamard(v_body, b->geom.inv_inertia_body);
-    return quat_rotate_vec3(q, out_body);
+    vec3 vb = quat_rotate_vec3(qc, v);
+    vb = vec3_hadamard(vb, b->geom.inv_inertia_body);
+    return dyn_fv3(quat_rotate_vec3(q, vb));
 }
 
-static vec3 phys_compute_angular_acceleration(const rigid_body *b) {
-    return phys_apply_inv_inertia_world(b, b->torque);
-}
+/* ------------------------------------------------------------------ */
+/* public API                                                           */
+/* ------------------------------------------------------------------ */
 
 int phys_body_clear_forces(rigid_body *b) {
     if (!b) return -1;
-
-    b->force = vec3_zero();
+    b->force  = vec3_zero();
     b->torque = vec3_zero();
     return 0;
 }
 
 int phys_body_add_force(rigid_body *b, vec3 f) {
     if (!b) return -1;
-
-    b->force = vec3_add(b->force, f);
+    b->force = dyn_fv3(vec3_add(b->force, f));
     return 0;
 }
 
 int phys_body_add_torque(rigid_body *b, vec3 t) {
     if (!b) return -1;
-
-    b->torque = vec3_add(b->torque, t);
+    b->torque = dyn_fv3(vec3_add(b->torque, t));
     return 0;
 }
-
-// static inline int float_is_nan(float x) {
-//     unsigned u = *(unsigned *)&x;
-//     return ((u & 0x7f800000) == 0x7f800000) &&  // exponent all 1s
-//            ((u & 0x007fffff) != 0);             // mantissa non-zero
-// }
 
 int phys_body_integrate(rigid_body *b, float dt) {
-    volatile unsigned canary_a = 0x11111111;
-    volatile unsigned canary_b = 0x22222222;
+    if (!b || !isfinite(dt) || dt <= 0.0f) return -1;
+    if (dt > DYN_MAX_DT) dt = DYN_MAX_DT;
 
-    if (!b || dt <= 0.0f) return -1;
+    // clean up any non-finite values
+    b->state.position         = dyn_fv3(b->state.position);
+    b->state.linear_velocity  = dyn_fv3(b->state.linear_velocity);
+    b->state.angular_velocity = dyn_clav(dyn_fv3(b->state.angular_velocity));
+    b->state.orientation      = dyn_fqn(b->state.orientation);
+    b->force                  = dyn_fv3(b->force);
+    b->torque                 = dyn_fv3(b->torque);
 
-    b->state.linear_acceleration = phys_compute_linear_acceleration(b);
-    b->state.angular_acceleration = phys_compute_angular_acceleration(b);
+    // linear — semi-implicit Euler
+    vec3 lin_acc = dyn_fv3(vec3_scale(b->force, b->geom.inv_mass));
+    b->state.linear_acceleration = lin_acc;
+    b->state.linear_velocity = dyn_fv3(
+        vec3_add(b->state.linear_velocity, vec3_scale(lin_acc, dt)));
+    b->state.position = dyn_fv3(
+        vec3_add(b->state.position, vec3_scale(b->state.linear_velocity, dt)));
 
-    b->state.linear_velocity =
-        vec3_add(b->state.linear_velocity,
-                 vec3_scale(b->state.linear_acceleration, dt));
+    // angular — semi-implicit Euler for velocity
+    vec3 ang_acc = dyn_fv3(dyn_iIw(b, b->torque));
+    b->state.angular_acceleration = ang_acc;
+    b->state.angular_velocity = dyn_clav(dyn_fv3(
+        vec3_add(b->state.angular_velocity, vec3_scale(ang_acc, dt))));
 
-    b->state.angular_velocity =
-        vec3_add(b->state.angular_velocity,
-                 vec3_scale(b->state.angular_acceleration, dt));
-
-    b->state.position =
-        vec3_add(b->state.position,
-                 vec3_scale(b->state.linear_velocity, dt));
-
-    // printk("I0\n");
-    quat omega = quat_from_angular_velocity(b->state.angular_velocity);
-    // printk("I1\n");
-    quat qdot  = quat_scale(quat_mul(omega, b->state.orientation), 0.5f);
-    // printk("I2\n");
-
-    volatile unsigned canary_c = 0x33333333;
-    volatile unsigned canary_d = 0x44444444;
-
-    quat temp  = b->state.orientation;
-    // printk("I3\n");
-    quat delta = quat_scale(qdot, dt);
-    // printk("I4\n");
-    quat sum   = quat_add(temp, delta);
-    // printk("I5\n");
-
-    if (canary_a != 0x11111111) panic("stack smash a");
-    if (canary_b != 0x22222222) panic("stack smash b");
-    if (canary_c != 0x33333333) panic("stack smash c");
-    if (canary_d != 0x44444444) panic("stack smash d");
-
-    // printk_float("sum.w", sum.w);
-    // printk_float("sum.x", sum.x);
-    // printk_float("sum.y", sum.y);
-    // printk_float("sum.z", sum.z);
-
-    // printk("N0\n");
-    volatile float w = sum.w;
-    // printk("N1\n");
-    volatile float x = sum.x;
-    // printk("N2\n");
-    volatile float y = sum.y;
-    // printk("N3\n");
-    volatile float z = sum.z;
-    // printk("N4\n");
-
-    volatile float ww = w * w;
-    // printk("N5\n");
-    volatile float xx = x * x;
-    volatile float yed = sum.y;
-    if (yed < 1e-20f && yed> -1e-20f) yed = 0.0f;
-    // printk("N6\n");
-    volatile float yy = yed * yed;
-    // printk("N7\n");
-    volatile float zz = z * z;
-    // printk("N8\n");
-
-    volatile float s1 = ww + xx;
-    // printk("N9\n");
-    volatile float s2 = yy + zz;
-    // printk("N10\n");
-    volatile float nsq = s1 + s2;
-    // printk("N11\n");
-    // printk_float("nsq", nsq);
-
-    if (canary_a != 0x11111111) panic("stack smash a2");
-    if (canary_b != 0x22222222) panic("stack smash b2");
-    if (canary_c != 0x33333333) panic("stack smash c2");
-    if (canary_d != 0x44444444) panic("stack smash d2");
-
-    if (nsq <= 1e-20f) {
-        printk("N12 fallback\n");
-        b->state.orientation = (quat){1.0f, 0.0f, 0.0f, 0.0f};
-        return 0;
+    // orientation — exact axis-angle: q_new = exp(w*dt/2) * q
+    {
+        vec3  w  = b->state.angular_velocity;
+        float w2 = w.x*w.x + w.y*w.y + w.z*w.z;
+        if (w2 > 1e-12f) {
+            float wmag = sqrtf(w2);
+            float half = 0.5f * wmag * dt;
+            float sinc = sinf(half) / wmag;
+            quat  dq   = {cosf(half), w.x*sinc, w.y*sinc, w.z*sinc};
+            b->state.orientation = dyn_fqn(quat_mul(dq, b->state.orientation));
+        }
     }
 
-    // printk("N13\n");
-    volatile float root = sqrtf(nsq);
-    // printk("N14\n");
-    // printk_float("root", root);
-
-    volatile float invn = 1.0f / root;
-    // printk("N15\n");
-    // printk_float("invn", invn);
-
-    quat res;
-    res.w = w * invn;
-    // printk("N16\n");
-    res.x = x * invn;
-    // printk("N17\n");
-    res.y = y * invn;
-    // printk("N18\n");
-    res.z = z * invn;
-    // printk("N19\n");
-
-    printk_float("res.w", res.w);
-    printk_float("res.x", res.x);
-    printk_float("res.y", res.y);
-    printk_float("res.z", res.z);
-
-    b->state.orientation = res;
-    printk("N20\n");
     return 0;
 }
 
-// int phys_resolve_collision_basic(rigid_body *a, rigid_body *b,
-//                                  const collision_result *res) {
-//     if (!a || !b || !res || !res->hit) return -1;
-
-//     vec3 normal;
-//     float depth;
-
-//     if (res->epa.hit && res->epa.depth > 1e-6f &&
-//         vec3_norm_sq(res->epa.normal) > 1e-8f) {
-//         normal = vec3_normalize(res->epa.normal);
-//         depth = res->epa.depth;
-//     } else {
-//         normal = vec3_sub(b->state.position, a->state.position);
-//         if (vec3_norm_sq(normal) < 1e-8f)
-//             normal = vec3_make(1.0f, 0.0f, 0.0f);
-//         else
-//             normal = vec3_normalize(normal);
-//         depth = 0.01f;
-//     }
-
-//     {
-//         float inv_mass_a = a->geom.inv_mass;
-//         float inv_mass_b = b->geom.inv_mass;
-//         float inv_mass_sum = inv_mass_a + inv_mass_b;
-
-//         if (inv_mass_sum > 0.0f) {
-//             float percent = 0.8f;
-//             float slop = 0.001f;
-//             float corr_mag = percent * fmaxf(depth - slop, 0.0f) / inv_mass_sum;
-//             vec3 correction = vec3_scale(normal, corr_mag);
-
-//             a->state.position = vec3_sub(a->state.position,
-//                                          vec3_scale(correction, inv_mass_a));
-//             b->state.position = vec3_add(b->state.position,
-//                                          vec3_scale(correction, inv_mass_b));
-            
-
-//         }
-//     }
-
-//     {
-//         vec3 rv = vec3_sub(b->state.linear_velocity, a->state.linear_velocity);
-//         float vel_along_normal = vec3_dot(rv, normal);
-
-//         if (vel_along_normal < 0.0f) {
-//             float e = 0.4f;
-//             float inv_mass_sum = a->geom.inv_mass + b->geom.inv_mass;
-//             if (inv_mass_sum > 0.0f) {
-//                 float j = -(1.0f + e) * vel_along_normal / inv_mass_sum;
-//                 vec3 impulse = vec3_scale(normal, j);
-
-//                 a->state.linear_velocity =
-//                     vec3_sub(a->state.linear_velocity,
-//                              vec3_scale(impulse, a->geom.inv_mass));
-//                 b->state.linear_velocity =
-//                     vec3_add(b->state.linear_velocity,
-//                              vec3_scale(impulse, b->geom.inv_mass));
-//             }
-//         }
-//     }
-
-//     return 0;
-// }
 int phys_resolve_collision_basic(rigid_body *a, rigid_body *b,
                                  const collision_result *res) {
     if (!a || !b || !res || !res->hit) return -1;
-    printk("hello\n");
 
-    vec3 normal;
-    float depth;
-    vec3 contact_a;
-    vec3 contact_b;
+    /* --- collision normal, depth, contact points --- */
+    vec3  n  = {.x=0.0f, .y=1.0f, .z=0.0f};
+    float d  = 0.0f;
+    vec3  ca = a->state.position;
+    vec3  cb = b->state.position;
 
-    if (res->epa.hit &&
-        res->epa.depth > 1e-6f &&
-        vec3_norm_sq(res->epa.normal) > 1e-8f) {
-        normal = vec3_normalize(res->epa.normal);
-        depth = res->epa.depth;
-        contact_a = res->epa.contact_a;
-        contact_b = res->epa.contact_b;
+    if (res->epa.hit && isfinite(res->epa.depth) && res->epa.depth > 1e-6f) {
+        float nn = res->epa.normal.x*res->epa.normal.x
+                 + res->epa.normal.y*res->epa.normal.y
+                 + res->epa.normal.z*res->epa.normal.z;
+        if (isfinite(nn) && nn > 1e-8f) {
+            float inv = 1.0f / sqrtf(nn);
+            n.x = res->epa.normal.x * inv;
+            n.y = res->epa.normal.y * inv;
+            n.z = res->epa.normal.z * inv;
+            d   = res->epa.depth;
+            if (isfinite(res->epa.contact_a.x) &&
+                isfinite(res->epa.contact_a.y) &&
+                isfinite(res->epa.contact_a.z))
+                ca = res->epa.contact_a;
+            if (isfinite(res->epa.contact_b.x) &&
+                isfinite(res->epa.contact_b.y) &&
+                isfinite(res->epa.contact_b.z))
+                cb = res->epa.contact_b;
+        }
     } else {
-        normal = vec3_sub(b->state.position, a->state.position);
-        if (vec3_norm_sq(normal) < 1e-8f)
-            normal = vec3_make(1.0f, 0.0f, 0.0f);
-        else
-            normal = vec3_normalize(normal);
-
-        depth = 0.01f;
-
-        contact_a = a->state.position;
-        contact_b = b->state.position;
+        vec3  sep = vec3_sub(b->state.position, a->state.position);
+        float sn  = sep.x*sep.x + sep.y*sep.y + sep.z*sep.z;
+        if (isfinite(sn) && sn > 1e-8f) {
+            float inv = 1.0f / sqrtf(sn);
+            n.x = sep.x*inv; n.y = sep.y*inv; n.z = sep.z*inv;
+        }
+        d = 0.01f;
     }
 
-    /* positional correction */
-    {
-        float inv_mass_a = a->geom.inv_mass;
-        float inv_mass_b = b->geom.inv_mass;
-        float inv_mass_sum = inv_mass_a + inv_mass_b;
-
-        if (inv_mass_sum > 0.0f) {
-            float percent = 0.8f;
-            float slop = 0.001f;
-            float corr_mag = percent * fmaxf(depth - slop, 0.0f) / inv_mass_sum;
-            vec3 correction = vec3_scale(normal, corr_mag);
-
-            a->state.position = vec3_sub(a->state.position,
-                                         vec3_scale(correction, inv_mass_a));
-            b->state.position = vec3_add(b->state.position,
-                                         vec3_scale(correction, inv_mass_b));
+    // positional correction
+    float total_im = a->geom.inv_mass + b->geom.inv_mass;
+    if (isfinite(total_im) && total_im > 0.0f) {
+        float corr = 0.8f * fmaxf(d - 0.001f, 0.0f) / total_im;
+        if (isfinite(corr) && corr > 0.0f) {
+            a->state.position = dyn_fv3(vec3_sub(a->state.position,
+                vec3_scale(n, corr * a->geom.inv_mass)));
+            b->state.position = dyn_fv3(vec3_add(b->state.position,
+                vec3_scale(n, corr * b->geom.inv_mass)));
         }
     }
 
-    /* impulse response with angular effects */
-    {
-        vec3 ra = vec3_sub(contact_a, a->state.position);
-        vec3 rb = vec3_sub(contact_b, b->state.position);
+    // impulse-based response
+    vec3 ra = dyn_fv3(vec3_sub(ca, a->state.position));
+    vec3 rb = dyn_fv3(vec3_sub(cb, b->state.position));
 
-        vec3 va = vec3_add(a->state.linear_velocity,
-                           vec3_cross(a->state.angular_velocity, ra));
-        vec3 vb = vec3_add(b->state.linear_velocity,
-                           vec3_cross(b->state.angular_velocity, rb));
+    vec3 va = dyn_fv3(vec3_add(a->state.linear_velocity,
+                               vec3_cross(a->state.angular_velocity, ra)));
+    vec3 vb = dyn_fv3(vec3_add(b->state.linear_velocity,
+                               vec3_cross(b->state.angular_velocity, rb)));
 
-        vec3 rv = vec3_sub(vb, va);
-        float vel_along_normal = vec3_dot(rv, normal);
+    float vrel = vec3_dot(vec3_sub(vb, va), n);
+    if (!isfinite(vrel) || vrel >= 0.0f) return 0;
 
-        if (vel_along_normal < 0.0f) {
-            float e = 0.4f;
+    vec3 ra_x_n = vec3_cross(ra, n);
+    vec3 rb_x_n = vec3_cross(rb, n);
 
-            vec3 ra_x_n = vec3_cross(ra, normal);
-            vec3 rb_x_n = vec3_cross(rb, normal);
+    vec3 iIa_ran = dyn_iIw(a, ra_x_n);
+    vec3 iIb_rbn = dyn_iIw(b, rb_x_n);
 
-            vec3 invI_ra_x_n = phys_apply_inv_inertia_world(a, ra_x_n);
-            vec3 invI_rb_x_n = phys_apply_inv_inertia_world(b, rb_x_n);
+    float ang_a = vec3_dot(vec3_cross(iIa_ran, ra), n);
+    float ang_b = vec3_dot(vec3_cross(iIb_rbn, rb), n);
+    if (!isfinite(ang_a)) ang_a = 0.0f;
+    if (!isfinite(ang_b)) ang_b = 0.0f;
 
-            float ang_term_a = vec3_dot(vec3_cross(invI_ra_x_n, ra), normal);
-            float ang_term_b = vec3_dot(vec3_cross(invI_rb_x_n, rb), normal);
+    float denom = a->geom.inv_mass + b->geom.inv_mass + ang_a + ang_b;
+    if (!isfinite(denom) || denom < 1e-8f) return 0;
 
-            float denom = a->geom.inv_mass + b->geom.inv_mass + ang_term_a + ang_term_b;
+    float j = -(1.0f + 0.4f) * vrel / denom;
+    if (!isfinite(j)) return 0;
 
-            if (denom > 1e-8f) {
-                float j = -(1.0f + e) * vel_along_normal / denom;
-                vec3 impulse = vec3_scale(normal, j);
+    vec3 imp = vec3_scale(n, j);
 
-                a->state.linear_velocity =
-                    vec3_sub(a->state.linear_velocity,
-                             vec3_scale(impulse, a->geom.inv_mass));
-                b->state.linear_velocity =
-                    vec3_add(b->state.linear_velocity,
-                             vec3_scale(impulse, b->geom.inv_mass));
+    a->state.linear_velocity = dyn_fv3(vec3_sub(a->state.linear_velocity,
+        vec3_scale(imp, a->geom.inv_mass)));
+    b->state.linear_velocity = dyn_fv3(vec3_add(b->state.linear_velocity,
+        vec3_scale(imp, b->geom.inv_mass)));
 
-                a->state.angular_velocity =
-                    vec3_sub(a->state.angular_velocity,
-                             phys_apply_inv_inertia_world(a, vec3_cross(ra, impulse)));
-                b->state.angular_velocity =
-                    vec3_add(b->state.angular_velocity,
-                             phys_apply_inv_inertia_world(b, vec3_cross(rb, impulse)));
-            }
-        }
-    }
+    vec3 ai = dyn_fv3(dyn_iIw(a, vec3_cross(ra, imp)));
+    vec3 bi = dyn_fv3(dyn_iIw(b, vec3_cross(rb, imp)));
+
+    a->state.angular_velocity = dyn_clav(dyn_fv3(
+        vec3_sub(a->state.angular_velocity, ai)));
+    b->state.angular_velocity = dyn_clav(dyn_fv3(
+        vec3_add(b->state.angular_velocity, bi)));
 
     return 0;
 }
