@@ -10,6 +10,8 @@
 #include "transform.h"
 #include "vec3.h"
 
+// assuming that the z axis points out of the screen, x is 2d horizontal and y is 2d vertical
+// rotate a triangle around the x, y and z axes (roll, yaw, pitch)
 void notmain(void) { 
     kmalloc_init(10);
     mbox_response_t response = RPI_qpu_enable(1);
@@ -35,7 +37,7 @@ void notmain(void) {
     };
 
     cl_builder_t binning_cl;
-    binning_state_t binning_state = cl_init_binning(&binning_cl, width_tiles, height_tiles, p_width, p_height);
+    binning_state_t binning_state = cl_init_binning(&binning_cl, width_tiles, height_tiles, p_width, p_height, 0);
 
     uint32_t* frag_shader_code_addr = (uint32_t*) frag_shader_fixed_light;
     uint32_t frag_shader_code_addr_gpu = CPU_TO_BUS(frag_shader_code_addr);
@@ -68,7 +70,7 @@ void notmain(void) {
     vec3 v2 = vec3_make(xs_2_f, ys_2_f, zs_2_f);
     vec3 v3 = vec3_make(xs_3_f, ys_3_f, zs_3_f);
 
-    vec3 light_dir = vec3_make(-1.0f, 1.0f, 1.0f);
+    vec3 light_dir = vec3_make(0.0f, 0.0f, -1.0f);
     float intensity = vec3_sun_intensity(light_dir, v1, v2, v3, ambient_intensity);
 
     vec3 base_color = vec3_make(1.0f, 0.0f, 0.0f);

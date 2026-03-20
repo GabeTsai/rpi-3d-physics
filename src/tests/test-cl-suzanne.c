@@ -9,10 +9,10 @@
 #include "frag-shader-fixed-light.h"
 #include "render.h"
 #include "physics.h"
-#include "dynamics.h"
 
 #include "suzanne.h"
 
+// render a rotating Suzanne mesh
 void notmain(void) {
     kmalloc_init(20);
     RPI_qpu_enable(1);

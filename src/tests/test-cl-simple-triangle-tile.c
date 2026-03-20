@@ -9,6 +9,8 @@
 #include "frag-shader-fixed-light.h"
 #include "mailbox-interface.h"
 
+// Render a single triangle centered in a tiled framebuffer
+
 void notmain(void) { 
     kmalloc_init(10);
     mbox_response_t response = RPI_qpu_enable(1);
@@ -49,7 +51,7 @@ void notmain(void) {
         (nv_vertex_nch_nps_t *) kmalloc_aligned(vertex_data_stride * 6, 16);
     uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
     
-    uint16_t *indices = kmalloc_aligned(6 * sizeof(uint16_t), 4);
+    uint16_t *indices = kmalloc_aligned(3 * sizeof(uint16_t), 4);
 
     float xs_1_f = 0.0f;
     float ys_1_f = -20.0f;
@@ -60,20 +62,8 @@ void notmain(void) {
 
     uint16_t total_verts = 0;
     triangle tri = triangle_make_from_pts(xs_1_f, ys_1_f, xs_2_f, ys_2_f, xs_3_f, ys_3_f, 0.5f);
-    mesh_geom mesh = mesh_geom_init_triangle(tri, 1.0f, 0.0f, 0.0f);
+    mesh_geom mesh = mesh_geom_init_triangle(tri, 1.0f, 0.0f, 0.0f, 1);
     put_mesh_geom_to_nv(mesh, indices, shaded_vertex_data_addr);
-    total_verts += 3;
-
-    float xs_1_f2 = 0.0f;
-    float ys_1_f2 = -20.0f;
-    float xs_2_f2 = -20.0f;
-    float ys_2_f2 = 20.0f;
-    float xs_3_f2 = 20.0f;
-    float ys_3_f2 = 20.0f;
-
-    triangle tri2 = triangle_make_from_pts(xs_1_f2, ys_1_f2, xs_2_f2, ys_2_f2, xs_3_f2, ys_3_f2, 0.2f);
-    mesh_geom mesh2 = mesh_geom_init_triangle(tri2, 0.0f, 1.0f, 0.0f);
-    put_triangle_to_nv(mesh2.triangles[0], total_verts, indices, shaded_vertex_data_addr, mesh2.r, mesh2.g, mesh2.b);
     total_verts += 3;
 
     cl_bin_primitives(&binning_cl, vertex_data_stride, frag_shader_code_addr_gpu, 

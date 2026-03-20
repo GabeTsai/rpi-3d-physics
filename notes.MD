@@ -86,7 +86,7 @@ Front face (CCW from camera):    Back face (CW from camera):
 **3/19/26, 8:46 AM** - I have slept 30 minutes in the last 24 hours. We encountered a really bad bug that was exposed via a simple collision test - a cube falling onto a large flat cube (plane). Every time the cube collided with the plane, the program would freeze. Turns out the cause was the collision logic outputting floats that were way below the normal float threshold (de-norms), causing underflow. We tried to manually correct all of the multiplications but this just wasn't tractable. Page 1-20 of the ARM1176JZF-S Technical Reference Manual states that the VFP hardware will raise an undefined instruction exception for all 5 IEEE 754 floating point exceptions including underflow so for bare metal, the user should implement logic to catch that and compute the correct IEEE 754 result in software. For a physics engine, the difference between the smallest IEEE 754 normal (magnitude on 10e-38) and 0 is negligible so the cleanest solution is to enable **RunFast Mode**, which tells the VFP to auto flush anything that underflows to zero and keep going. Moral of the story is to always consult the datasheet when you can and see if you can take advantage of existing hardware. No matter how obscure the problem seems, some caffeinated engineer probably encountered it before you and wrote a fix for it. 
 
 **3/19/26, 2:48 PM**
-## Optimizations made to ball test
+#### Optimizations made to ball test
 
 
 - Removed unnecessary memset calls in redraw since the GPU only reads up to total_verts, which is passed into `cl_bin_primitives`, never touching stale data beyond that - major

@@ -9,7 +9,6 @@
 #include "frag-shader-fixed-light.h"
 #include "render.h"
 #include "mailbox-interface.h"
-#include "vertex-transform.h"
 
 #define MAX_BALLS 128
 
@@ -29,6 +28,7 @@ static float rand_color_component(void) {
     return 0.2f + 0.8f * rand_unit_float();
 }
 
+// progressively spawn rigid body balls with random velocities, positions and orientations
 void notmain(void) {
     kmalloc_init(20);
 

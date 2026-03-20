@@ -9,6 +9,7 @@
 #include "frag-shader-fixed-light.h"
 #include "render.h"
 
+// drop a cube on top of another on a floor 
 void notmain(void) {
     kmalloc_init(20);
     RPI_qpu_enable(1);
