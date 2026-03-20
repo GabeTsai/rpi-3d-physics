@@ -111,4 +111,3 @@ static inline void camera_rotate(camera *c, quat q) {
     c->rotation = quat_mul(q, c->rotation);
     c->inv_rotation = quat_conjugate(c->rotation);
 }
-

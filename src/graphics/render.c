@@ -1,5 +1,4 @@
 #include "render.h"
-#include "qpu-vertex-transform.h"
 
 bool proj_tri_to_screen(triangle tri, vec3 *world_points,
                         float *proj_xs, float *proj_ys, float *proj_zs,
@@ -176,24 +175,7 @@ int redraw_scene(const scene *s,
     if (!s || !cam || !vert_index_list || !shaded_vertex_data_addr || max_vertices <= 0)
         return -1;
 
-    // memset(vert_index_list, 0, sizeof(*vert_index_list) * max_vertices);
-    // memset(shaded_vertex_data_addr, 0, sizeof(*shaded_vertex_data_addr) * max_vertices);
-
     return render_scene(s, cam, zs, light_dir, vert_index_list, shaded_vertex_data_addr);
-}
-
-int redraw_scene_qpu(const scene *s,
-                    qpu_vertex_transform_t *vt,
-                 const camera *cam,
-                 float zs,
-                 vec3 light_dir,
-                 uint16_t *vert_index_list,
-                 nv_vertex_nch_nps_t *shaded_vertex_data_addr,
-                 int max_vertices) {
-    if (!s || !cam || !vert_index_list || !shaded_vertex_data_addr || max_vertices <= 0)
-        return -1;
-
-    return qpu_vt_render_scene(vt, s, cam, zs, light_dir, vert_index_list, shaded_vertex_data_addr);
 }
 
 int scene_resolve_collision_pair(rigid_body *a, rigid_body *b) {
