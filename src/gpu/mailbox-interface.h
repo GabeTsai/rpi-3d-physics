@@ -198,7 +198,7 @@ static inline void flush_uart_tx(void) {
 static inline void set_clock_hz(MailboxClock clock, uint32_t hz) {
     dev_barrier();
     RPI_set_clock_hz(clock, hz);
-    set_uart_baud(UART_BAUD_RATE, RPI_clock_get_curhz(clock));
+    set_uart_baud(UART_BAUD_RATE, RPI_clock_get_realhz(clock));
     dev_barrier();
 }
 
@@ -214,5 +214,18 @@ mbox_response_t RPI_fb_get_pitch(void);
 fb_info_t RPI_fb_init(uint32_t p_width, uint32_t p_height, uint32_t v_width, uint32_t v_height, uint32_t depth);
 
 mbox_response_t RPI_qpu_enable(uint32_t enable);
+
+// GPU memory allocation via VideoCore firmware
+#define MEM_FLAG_DIRECT          0x04
+#define MEM_FLAG_COHERENT        0x08
+#define MEM_FLAG_L1_NONALLOC     0x0C
+#define MEM_FLAG_ZERO            0x10
+#define MEM_FLAG_NO_INIT         0x20
+#define MEM_FLAG_HINT_PERMALOCK  0x40
+
+uint32_t mbox_gpu_alloc(uint32_t size, uint32_t align, uint32_t flags);
+uint32_t mbox_gpu_lock(uint32_t handle);
+void mbox_gpu_unlock(uint32_t handle);
+void mbox_gpu_free(uint32_t handle);
 
 #endif

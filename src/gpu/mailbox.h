@@ -9,7 +9,7 @@
 #define GPU_OFFSET 0x40000000
 
 #define MBOX_BASE_ADDR 0x2000B880
-#define MSG_SIZE 8 
+#define MSG_SIZE 9
 
 #define FB_MSG_NWORDS 22
 

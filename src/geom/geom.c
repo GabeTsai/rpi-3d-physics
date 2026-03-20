@@ -33,29 +33,16 @@ static mesh_geom mesh_geom_make(
     return mesh;
 }
 
+// we can do this optimization for icospheres because
+// all vertices lie on the sphere surface, so the normal 
+// is just the vector from the center of the sphere to the vertex, normalized
 void mesh_geom_compute_smooth_normals(mesh_geom *mesh) {
     int triangle_count = mesh->triangle_count;
     for (int i = 0; i < triangle_count; i++) {
         triangle *tri = &mesh->triangles[i];
-        vec3 vi[3] = { tri->v0, tri->v1, tri->v2 };
-        vec3 *ni[3] = { &tri->n0, &tri->n1, &tri->n2 };
-        for (int j = 0; j < 3; j++) {
-            vec3 acc = vec3_zero();
-            for (int k = 0; k < triangle_count; k++) {
-                triangle *tk = &mesh->triangles[k];
-                vec3 vk[3] = { tk->v0, tk->v1, tk->v2 };
-                for (int l = 0; l < 3; l++) { 
-                    // if triangle shares vertex, add face normal to accumulator
-                    if (fabsf(vi[j].x - vk[l].x) < 1e-5f &&
-                        fabsf(vi[j].y - vk[l].y) < 1e-5f &&
-                        fabsf(vi[j].z - vk[l].z) < 1e-5f) {
-                        acc = vec3_add(acc, vec3_face_norm(tk->v0, tk->v1, tk->v2));
-                        break; // for icospheres, one vertex overlap = edge overlap so add and move on
-                    }
-                }
-            }
-            *ni[j] = vec3_normalize(acc);
-        }
+        tri->n0 = vec3_normalize(tri->v0);
+        tri->n1 = vec3_normalize(tri->v1);
+        tri->n2 = vec3_normalize(tri->v2);
     }
     mesh->smooth_normals = true;
 }

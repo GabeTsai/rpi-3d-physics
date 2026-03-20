@@ -8,6 +8,7 @@
 typedef struct {
     vec3 position;
     quat rotation;
+    quat inv_rotation; // cache inv rotation
 
     float fx;
     float fy;
@@ -25,6 +26,7 @@ static inline void camera_init(camera *c, vec3 position, quat rotation,
                                float znear, float zfar) {    
     c->position = position;
     c->rotation = rotation;
+    c->inv_rotation = quat_conjugate(rotation);
 
     c->fx = fx;
     c->fy = fy;
@@ -37,8 +39,7 @@ static inline void camera_init(camera *c, vec3 position, quat rotation,
 
 static inline vec3 camera_world_to_camera(const camera *cam, vec3 p_world) {
     vec3 rel = vec3_sub(p_world, cam->position);
-    quat inv = quat_conjugate(cam->rotation);
-    return quat_rotate_vec3(inv, rel);
+    return quat_rotate_vec3(cam->inv_rotation, rel);
 }
 
 static inline int camera_project_point(const camera *cam,
@@ -46,7 +47,7 @@ static inline int camera_project_point(const camera *cam,
                                        float *px, float *py, float *pz)
 {
     vec3 rel = vec3_sub(world_point, cam->position);
-    vec3 p_cam = quat_rotate_vec3(quat_conjugate(cam->rotation), rel);
+    vec3 p_cam = quat_rotate_vec3(cam->inv_rotation, rel);
 
     float z = p_cam.z;
     if (z <= cam->znear || z >= cam->zfar)
@@ -74,7 +75,7 @@ static inline int camera_project_clip(const camera *cam,
                                       camera_clip_proj *out)
 {
     vec3 rel = vec3_sub(world_point, cam->position);
-    vec3 p_cam = quat_rotate_vec3(quat_conjugate(cam->rotation), rel);
+    vec3 p_cam = quat_rotate_vec3(cam->inv_rotation, rel);
 
     float x = p_cam.x;
     float y = p_cam.y;
@@ -108,5 +109,6 @@ static inline void camera_translate(camera *c, vec3 delta) {
 
 static inline void camera_rotate(camera *c, quat q) {
     c->rotation = quat_mul(q, c->rotation);
+    c->inv_rotation = quat_conjugate(c->rotation);
 }
 

@@ -35,8 +35,21 @@ typedef enum {
     V3D_BPOA = V3D_BASE + 0x308,
     V3D_BPOS = V3D_BASE + 0x30c,
 
+    V3D_L2CACTL = V3D_BASE + 0x020,
+    V3D_SLCACTL = V3D_BASE + 0x024,
+
     V3D_SQRSV0 = V3D_BASE + 0x410,
     V3D_SQRSV1 = V3D_BASE + 0x414,
+
+    // QPU user program scheduler registers
+    V3D_SRQPC  = V3D_BASE + 0x430, // write program counter → submits QPU job
+    V3D_SRQUA  = V3D_BASE + 0x434, // write uniforms address (set before SRQPC)
+    V3D_SRQUL  = V3D_BASE + 0x438, // write uniforms length
+    V3D_SRQCS  = V3D_BASE + 0x43C, // scheduler control/status
+
+    V3D_DBCFG  = V3D_BASE + 0xE00,
+    V3D_DBQITE = V3D_BASE + 0xE2C, // QPU interrupt enables
+    V3D_DBQITC = V3D_BASE + 0xE30, // QPU interrupt clear
 
     V3D_PCTRC = V3D_BASE + 0x670,
     V3D_PCTRE = V3D_BASE + 0x674, // enable perf counters

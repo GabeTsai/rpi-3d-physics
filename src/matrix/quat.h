@@ -44,21 +44,17 @@ static inline unsigned fbits(float x) {
 }
 
 static inline int float_is_nan(float x) {
-    unsigned u = *(unsigned *)&x;
+    unsigned u = fbits(x);
     return ((u & 0x7f800000) == 0x7f800000) &&  // exponent all 1s
            ((u & 0x007fffff) != 0);             // mantissa non-zero
 }
 
-static __attribute__((noinline)) float quat_dot(const quat *a, const quat *b) {
-    volatile float sink1 = a->w;
-    volatile float sink2 = a->x;
-    volatile float sink3 = a->y;
-    volatile float sink4 = a->z;
-    return sink1 * b->w + sink2 * b->x + sink3 * b->y + sink4 * b->z;
+static inline float quat_dot(const quat a, const quat b) {
+    return a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 static inline float quat_norm_sq(quat q) {
-    return quat_dot(&q, &q);
+    return quat_dot(q, q);
 }
 
 static inline float quat_norm(quat q) {
@@ -91,12 +87,9 @@ static inline quat quat_mul(quat a, quat b) {
 }
 
 static inline vec3 quat_rotate_vec3(quat q, vec3 v) {
-    quat p = {0.0f, v.x, v.y, v.z};
-    quat qc = quat_conjugate(q);
-    quat t = quat_mul(q, p);
-    quat r = quat_mul(t, qc);
-    vec3 out = {.x = r.x, .y = r.y, .z = r.z};
-    return out;
+    vec3 u = {.x = q.x, .y = q.y, .z = q.z};
+    vec3 t = vec3_scale(vec3_cross(u, v), 2.0f);
+    return vec3_add(v, vec3_add(vec3_scale(t, q.w), vec3_cross(u, t)));
 }
 
 static inline quat quat_from_axis_angle(vec3 axis, float angle_rad) {

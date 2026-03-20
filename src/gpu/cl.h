@@ -75,8 +75,8 @@ static inline configuration_bits_t default_configuration_bits_3d(void) {
         .covg_read_mode = false,
         .depth_test_func = DEPTH_TEST_LT,
         .z_updates = true,
-        .early_z = false,
-        .early_z_updates = false,
+        .early_z = true,
+        .early_z_updates = true,
     };
 }
 

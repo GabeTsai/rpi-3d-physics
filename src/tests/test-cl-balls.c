@@ -8,6 +8,8 @@
 #include "stdint.h"
 #include "frag-shader-fixed-light.h"
 #include "render.h"
+#include "mailbox-interface.h"
+#include "vertex-transform.h"
 
 #define MAX_BALLS 128
 
@@ -29,6 +31,16 @@ static float rand_color_component(void) {
 
 void notmain(void) {
     kmalloc_init(20);
+
+    // overclock the arm CPU to 1000 MHz
+    output("ARM clock before: %d\n", RPI_clock_get_curhz(ARM_CLK));
+    RPI_set_clock_hz(ARM_CLK, 950 * 1000000);
+    output("ARM clock after: %d\n", RPI_clock_get_curhz(ARM_CLK));
+
+    output("V3D clock before: %d\n", RPI_clock_get_curhz(V3D_CLK));
+    RPI_set_clock_hz(V3D_CLK, 420 * 1000000);
+    output("V3D clock after: %d\n", RPI_clock_get_curhz(V3D_CLK));
+
     RPI_qpu_enable(1);
 
     const int p_width = 1280;
@@ -82,18 +94,6 @@ void notmain(void) {
     rigid_body *scene_storage[MAX_RIGID_BODIES];
     scene sc;
     scene_init(&sc, scene_storage);
-
-    // rigid_body_geom geom_floor;
-    // mesh_geom mesh_floor = mesh_geom_init_box(50.0f, 1.0f, 50.0f, 1.0f, 1.0f, 1.0f);
-    // phys_geom_init(&geom_floor, mesh_floor, 10000.0f);
-    // geom_floor.mesh = mesh_floor;
-
-    // phys_body_init(&rbs[0], &geom_floor, vec3_make(0.0f, -10.0f, 0.0f), quat_identity());
-    // rbs[0].state.linear_velocity = vec3_zero();
-    // rbs[0].state.angular_velocity = vec3_zero();
-
-    // scene_clear(&sc);
-    // scene_add_rigid_body(&sc, &rbs[0]);
 
     rigid_body_geom geom_floor;
     rigid_body_geom geom_wall_x;
@@ -197,14 +197,6 @@ void notmain(void) {
                 scene_add_rigid_body(&sc, &rbs[idx]);
 
                 ball_count++;
-
-                total_verts = redraw_scene(&sc,
-                                        &cam,
-                                        0.8f,
-                                        light_dir,
-                                        indices,
-                                        shaded_vertex_data_addr,
-                                        max_vertices);
 
                 cl_bin_primitives(&binning_cl,
                                 vertex_data_stride,

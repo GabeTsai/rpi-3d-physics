@@ -116,9 +116,9 @@ static inline vec3 vec3_lerp3(vec3 a, vec3 b, vec3 c, float wa, float wb, float 
 }
 
 static inline float vec3_sun_intensity(vec3 light_dir,vec3 a, vec3 b, vec3 c, float ambient_intensity) {
-    vec3 light_norm = vec3_normalize(light_dir);
+    // vec3 light_norm = vec3_normalize(light_dir);
     vec3 face_norm = vec3_face_norm(a, b, c);
-    return fmaxf(ambient_intensity, vec3_dot(light_norm, face_norm));
+    return fmaxf(ambient_intensity, vec3_dot(light_dir, face_norm));
 }
 
 static inline vec3 vec3_sun_intensity_rgb(vec3 light_dir, vec3 rgb, vec3 a, vec3 b, vec3 c, float ambient_intensity) {

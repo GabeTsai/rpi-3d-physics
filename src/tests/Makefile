@@ -8,12 +8,12 @@
 # PROGS += test-cl-simple-triangle-rotating-cam.c
 # untested above
 # PROGS += test-cl-physics.c # works
-# PROGS += test-cl-balls.c # works
+PROGS += test-cl-balls.c # works
 # PROGS += test-cl-balls-moving-cam.c # works
 # PROGS += test-cl-suzanne.c # works
 # PROGS += test-cl-text.c # works
 # PROGS += test-cl-n-body.c # works
-PROGS += test-cl-platonic.c # works
+# PROGS += test-cl-platonic.c # works
 
 COMMON_SRC := ../gpu/mailbox.c ../gpu/mailbox-interface.c
 COMMON_SRC += ../gpu/cl-interface.c
@@ -33,6 +33,7 @@ COMMON_SRC += ../ps2/keyboard.c
 COMMON_SRC += ../ps2/ps2_keys.c
 # COMMON_SRC += ../../libunix/read-file.c
 COMMON_SRC += ../ps2/handler.c
+COMMON_SRC += ../gpu/vertex-transform.c
 
 CFLAGS += -I../gpu
 CFLAGS += -I../matrix
@@ -40,8 +41,11 @@ CFLAGS += -I../physics
 CFLAGS += -I../geom
 CFLAGS += -I../graphics
 CFLAGS += -I../ps2
+OPT_LEVEL = -O2
+CFLAGS += -ffast-math
 CFLAGS += $(LIBM_INC)
 LIBS += $(LIBM)
+LIBS += $(LGCC)
 
 # uncomment if you want it to automatically run.
 RUN=1

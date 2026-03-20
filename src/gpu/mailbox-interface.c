@@ -2,10 +2,12 @@
 #include "rpi.h"
 
 bool mbox_get_property(uint32_t* msg) {
-    uint32_t addr = (uint32_t) msg;
+    uint32_t addr = (uint32_t) msg ;
     if ((addr & 0xF) == 0) { // check 16-aligned
+        dev_barrier();
         mbox_write(MB_TAGS_ARM_TO_VC, addr);
-        while (mbox_read(MB_TAGS_ARM_TO_VC) != addr);
+        mbox_read(MB_TAGS_ARM_TO_VC);
+        dev_barrier();
         return msg[1] == MBOX_REQUEST_SUCCESS;
     }
     return 0;
@@ -138,7 +140,7 @@ uint32_t RPI_clock_get_realhz(MailboxClock clock) {
     };
 
     dev_barrier();
-    int res = mbox_get_property(msg);
+    int res = mbox_get_property(msg); 
     dev_barrier();
 
     if (!res) {
@@ -152,11 +154,11 @@ uint32_t RPI_set_clock_hz(MailboxClock clock, uint32_t hz) {
         MSG_SIZE * sizeof(uint32_t),
         MBOX_REQUEST,
         MBOX_TAG_SET_CLOCK_RATE,
-        2 * sizeof(uint32_t), // clock_id, rate, skip_turbo
+        3 * sizeof(uint32_t), // clock_id, rate, skip_turbo
         MBOX_REQUEST,  // request code
         clock,
         hz,
-        0,  
+        1,
     };
 
     dev_barrier();
@@ -449,4 +451,56 @@ mbox_response_t RPI_qpu_enable(uint32_t enable) {
     check_response(msg);
     mbox_response_t response = { msg[5] };
     return response; 
+}
+
+uint32_t mbox_gpu_alloc(uint32_t size, uint32_t align, uint32_t flags) {
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_ALLOCATE_MEMORY,
+        12,
+        MBOX_REQUEST,
+        size,
+        align,
+        flags,
+    };
+    check_response(msg);
+    return msg[5]; // handle
+}
+
+uint32_t mbox_gpu_lock(uint32_t handle) {
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_LOCK_MEMORY,
+        4,
+        MBOX_REQUEST,
+        handle,
+    };
+    check_response(msg);
+    return msg[5]; // bus address
+}
+
+void mbox_gpu_unlock(uint32_t handle) {
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_UNLOCK_MEMORY,
+        4,
+        MBOX_REQUEST,
+        handle,
+    };
+    check_response(msg);
+}
+
+void mbox_gpu_free(uint32_t handle) {
+    uint32_t msg[MSG_SIZE] __attribute__((aligned(16))) = {
+        MSG_SIZE * sizeof(uint32_t),
+        MBOX_REQUEST,
+        MBOX_TAG_RELEASE_MEMORY,
+        4,
+        MBOX_REQUEST,
+        handle,
+    };
+    check_response(msg);
 }

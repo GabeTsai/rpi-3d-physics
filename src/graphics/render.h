@@ -8,6 +8,9 @@
 #include "collision.h"
 #include "dynamics.h"
 
+// Forward declaration to avoid circular include with qpu-vertex-transform.h
+typedef struct qpu_vertex_transform_t qpu_vertex_transform_t;
+
 #define MAX_RIGID_BODIES 1000
 
 typedef struct {
@@ -31,6 +34,15 @@ int render_scene(const scene *s,
                  nv_vertex_nch_nps_t *shaded_vertex_data_addr);
 
 int redraw_scene(const scene *s,
+                 const camera *cam,
+                 float zs,
+                 vec3 light_dir,
+                 uint16_t *vert_index_list,
+                 nv_vertex_nch_nps_t *shaded_vertex_data_addr,
+                 int max_vertices);
+
+int redraw_scene_qpu(const scene *s,
+                    qpu_vertex_transform_t *vt,
                  const camera *cam,
                  float zs,
                  vec3 light_dir,

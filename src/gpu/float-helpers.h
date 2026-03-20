@@ -27,7 +27,9 @@ static inline void unpack_xs_ys_fixed12_4(uint32_t packed, int16_t *xs, int16_t 
 }
 
 static void printk_float(const char *name, float v) {
-    unsigned u = *(unsigned *)&v;
+    // replace direct pointer cast with union to avoid compiler warnings 
+    union { float f; unsigned u; } _pun = { .f = v }; 
+    unsigned u = _pun.u;
     unsigned absu = u & 0x7fffffff;
     int sign = (u >> 31) & 1;
 
