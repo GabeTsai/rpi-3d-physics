@@ -68,6 +68,8 @@ static inline vec3 dyn_iIw(const rigid_body *b, vec3 v) {
 int phys_body_clear_forces(rigid_body *b);
 int phys_body_add_force(rigid_body *b, vec3 f);
 int phys_body_add_torque(rigid_body *b, vec3 t);
+int phys_body_set_force(rigid_body *b, vec3 f);
+int phys_body_set_torque(rigid_body *b, vec3 t);
 int phys_body_integrate(rigid_body *b, float dt);
 int phys_resolve_collision_basic(rigid_body *a, rigid_body *b,
                                  const collision_result *res);

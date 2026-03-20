@@ -26,6 +26,18 @@ int phys_body_add_torque(rigid_body *b, vec3 t) {
     return 0;
 }
 
+int phys_body_set_force(rigid_body *b, vec3 f) {
+    if (!b) return -1;
+    b->force = dyn_fv3(f);
+    return 0;
+}
+
+int phys_body_set_torque(rigid_body *b, vec3 t) {
+    if (!b) return -1;
+    b->torque = dyn_fv3(t);
+    return 0;
+}
+
 int phys_body_integrate(rigid_body *b, float dt) {
     if (!b || !isfinite(dt) || dt <= 0.0f) return -1;
     if (dt > DYN_MAX_DT) dt = DYN_MAX_DT;

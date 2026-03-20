@@ -118,9 +118,15 @@ mesh_geom mesh_geom_init_plane(float hx, float hz, float r, float g, float b, in
 
 mesh_geom mesh_geom_init_tetrahedron(float radius, float r, float g, float b, int visible);
 
+mesh_geom mesh_geom_init_octahedron(float radius, float r, float g, float b, int visible);
+
+mesh_geom mesh_geom_init_dodecahedron(float radius, float r, float g, float b, int visible);
+
 mesh_geom mesh_geom_init_icosahedron(float radius, float r, float g, float b, int visible);
 
 mesh_geom mesh_geom_init_icosphere(float radius, int subdivisions, float r, float g, float b, int visible);
+
+mesh_geom mesh_geom_init_obj_from_memory(const char *obj_text, float r, float g, float b, int visible);
 
 // precomputes smooth per-vertex normals by averaging face normals of triangles
 // sharing each vertex position. O(N^2) — run once at mesh init

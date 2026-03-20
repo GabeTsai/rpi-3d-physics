@@ -8,6 +8,10 @@
 #include "stdint.h"
 #include "frag-shader-fixed-light.h"
 #include "render.h"
+#include "physics.h"
+#include "dynamics.h"
+
+#include "suzanne.h"
 
 void notmain(void) {
     kmalloc_init(20);
@@ -22,10 +26,10 @@ void notmain(void) {
 
     camera cam;
     camera_init(&cam,
-        vec3_make(0.0f, 10.0f, -80.0f),
+        vec3_make(0.0f, 0.0f, -6.0f),
         quat_from_euler(0.0f, 0.0f, 0.0f),
         640.0f, 640.0f,
-        0.0f, 0.0f, 1.0f, 5000.0f);
+        0.0f, 0.0f, 0.1f, 5000.0f);
 
     render_state_t render_state = {
         .fb_base_addr = fb.base_addr,
@@ -37,10 +41,13 @@ void notmain(void) {
 
     cl_builder_t binning_cl;
     binning_state_t binning_state =
-        cl_init_binning(&binning_cl, width_tiles, height_tiles, p_width, p_height, 1);
+        cl_init_binning(&binning_cl, width_tiles, height_tiles,
+                        p_width, p_height, 1);
 
     cl_builder_t rendering_cl;
-    cl_init_rendering(&rendering_cl, binning_state.tile_alloc_addr, render_state);
+    cl_init_rendering(&rendering_cl,
+                      binning_state.tile_alloc_addr,
+                      render_state);
 
     uint32_t *frag_shader_code_addr = (uint32_t *)frag_shader_fixed_light;
     uint32_t frag_shader_code_addr_gpu = CPU_TO_BUS(frag_shader_code_addr);
@@ -48,60 +55,53 @@ void notmain(void) {
     const uint8_t vertex_data_stride = sizeof(nv_vertex_nch_nps_t);
     vec3 light_dir = vec3_make(0.0f, 0.0f, -1.0f);
 
-    const int max_vertices = NUM_TRIANGLES_PER_BOX * 3 * 3;
+    mesh_geom mesh_obj =
+        mesh_geom_init_obj_from_memory(test_obj, 1.0f, 0.7f, 0.2f, 1);
+
+    if (!mesh_obj.triangles || mesh_obj.triangle_count <= 0) {
+        printk("OBJ parse failed\n");
+        clean_reboot();
+    }
+
+    printk("OBJ loaded: triangles=%d\n", mesh_obj.triangle_count);
+
+    rigid_body rb;
+    rigid_body_geom geom_obj;
+
+    phys_geom_init(&geom_obj, mesh_obj, 1.0f);
+    geom_obj.mesh = mesh_obj;
+
+    phys_body_init(&rb, &geom_obj,
+                   vec3_make(0.0f, 0.0f, 0.0f),
+                   quat_identity());
+
+    rb.state.linear_velocity = vec3_zero();
+    rb.state.angular_velocity = vec3_zero();
+
+    rigid_body *scene_storage[MAX_RIGID_BODIES];
+    scene sc;
+    scene_init(&sc, scene_storage);
+    scene_clear(&sc);
+    scene_add_rigid_body(&sc, &rb);
+
+    const int max_vertices = mesh_obj.triangle_count * 3;
 
     nv_vertex_nch_nps_t *shaded_vertex_data_addr =
         (nv_vertex_nch_nps_t *)kmalloc_aligned(
             max_vertices * sizeof(nv_vertex_nch_nps_t), 16);
+    if (!shaded_vertex_data_addr) {
+        printk("failed to alloc shaded vertex buffer\n");
+        clean_reboot();
+    }
+
     uint32_t shaded_vertex_data_addr_gpu = CPU_TO_BUS(shaded_vertex_data_addr);
 
     uint16_t *indices =
         (uint16_t *)kmalloc_aligned(max_vertices * sizeof(uint16_t), 4);
-
-    rigid_body rbs[3];
-    rigid_body *scene_storage[MAX_RIGID_BODIES];
-    scene sc;
-    scene_init(&sc, scene_storage);
-
-    rigid_body_geom geom_top;
-    rigid_body_geom geom_floor;
-    rigid_body_geom geom_bottom;
-
-    mesh_geom mesh_top =
-        mesh_geom_init_box(2.0f, 2.0f, 2.0f, 1.0f, 0.0f, 0.0f, 1);
-    mesh_geom mesh_floor =
-        mesh_geom_init_box(50.0f, 1.0f, 50.0f, 0.0f, 1.0f, 0.0f, 1);
-    mesh_geom mesh_bottom =
-        mesh_geom_init_box(2.0f, 2.0f, 2.0f, 1.0f, 0.0f, 1.0f, 1);
-
-    phys_geom_init(&geom_top, mesh_top, 1.0f);
-    phys_geom_init(&geom_floor, mesh_floor, 10000.0f);
-    phys_geom_init(&geom_bottom, mesh_bottom, 1.0f);
-
-    geom_top.mesh = mesh_top;
-    geom_floor.mesh = mesh_floor;
-    geom_bottom.mesh = mesh_bottom;
-
-    phys_body_init(&rbs[2], &geom_top,
-                   vec3_make(0.0f, 10.0f, 0.0f), quat_identity());
-    phys_body_init(&rbs[1], &geom_floor,
-                   vec3_make(0.0f, -10.0f, 0.0f), quat_identity());
-    phys_body_init(&rbs[0], &geom_bottom,
-                   vec3_make(0.0f, -5.0f, 0.0f), quat_identity());
-
-    rbs[0].state.linear_velocity = vec3_zero();
-    rbs[0].state.angular_velocity = vec3_make(1.0f, 0.0f, 0.0f);
-
-    rbs[1].state.linear_velocity = vec3_zero();
-    rbs[1].state.angular_velocity = vec3_zero();
-
-    rbs[2].state.linear_velocity = vec3_zero();
-    rbs[2].state.angular_velocity = vec3_make(4.0f, 2.0f, 3.0f);
-
-    scene_clear(&sc);
-    scene_add_rigid_body(&sc, &rbs[0]);
-    scene_add_rigid_body(&sc, &rbs[1]);
-    scene_add_rigid_body(&sc, &rbs[2]);
+    if (!indices) {
+        printk("failed to alloc index buffer\n");
+        clean_reboot();
+    }
 
     int total_verts = redraw_scene(&sc,
                                    &cam,
@@ -111,6 +111,8 @@ void notmain(void) {
                                    shaded_vertex_data_addr,
                                    max_vertices);
 
+    printk("initial verts=%d\n", total_verts);
+
     cl_bin_primitives(&binning_cl,
                       vertex_data_stride,
                       frag_shader_code_addr_gpu,
@@ -118,15 +120,13 @@ void notmain(void) {
                       indices,
                       total_verts);
 
-    phys_body_add_force(&rbs[0], vec3_make(0.0f, -30.0f, 0.0f));
-    phys_body_add_force(&rbs[2], vec3_make(0.0f, -30.0f, 0.0f));
-
+    float angle_y = 0.0f;
+    rb.state.angular_velocity = vec3_make(0.0f, 6.0f, 1.0f);
     while (1) {
-        const float dt = 20.0f * 0.001f;
+        const float dt = 30.0f * 0.001f;
+        const float spin_speed = 1.0f;
 
         scene_integrate_all(&sc, dt);
-        scene_resolve_all_collisions(&sc);
-
         total_verts = redraw_scene(&sc,
                                    &cam,
                                    0.8f,
@@ -142,15 +142,10 @@ void notmain(void) {
                           indices,
                           total_verts);
 
-        // printk("B verts=%d\n", total_verts);
-
         clear_flush_count();
         cl_bin_one_frame(&binning_cl);
 
         clear_frame_count();
         cl_render_one_frame(&rendering_cl);
-        // printk("D\n");
-
-        // delay_ms(5);
     }
 }
